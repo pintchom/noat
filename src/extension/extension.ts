@@ -13,6 +13,7 @@ import {
   scopeDir,
 } from '../core/store';
 import { GitSync } from './git-sync';
+import { registerMcpServer } from './mcp-registration';
 import { NoteEditorProvider } from './note-editor';
 import { collectAllNotes } from './note-search';
 import { type NoatNode, NotesTreeProvider } from './notes-tree';
@@ -29,6 +30,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // user commits in a workspace repo (see GitSync).
   const gitSync = new GitSync(noatHome);
   void gitSync.start();
+
+  registerMcpServer(context, noatHome);
 
   context.subscriptions.push(
     vscode.window.createTreeView('noatNotes', { treeDataProvider: tree }),

@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import esbuild from 'esbuild';
 
 const watch = process.argv.includes('--watch');
@@ -31,7 +32,16 @@ const mcpCtx = await esbuild.context({
   platform: 'node',
   format: 'cjs',
   target: 'node20',
+  mainFields: ['module', 'main'],
 });
+
+// jsdom (pulled in by @blocknote/server-util) requires this worker file by
+// path at runtime; it must sit next to the bundle.
+fs.mkdirSync('dist', { recursive: true });
+fs.copyFileSync(
+  'node_modules/jsdom/lib/jsdom/living/xhr/xhr-sync-worker.js',
+  'dist/xhr-sync-worker.js'
+);
 
 const webviewCtx = await esbuild.context({
   ...shared,
