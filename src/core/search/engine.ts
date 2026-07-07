@@ -1,6 +1,6 @@
 import { listAllNotes, readNoteByPath, scopeOfNotePath } from '../note-listing';
 import { blocksToPlainText, blocksToSections } from '../note-text';
-import { embedQuery, embedTexts } from './embeddings';
+import { embedQuery, embedTexts, isEmbedderReady } from './embeddings';
 import { type HybridResult, mergeHybrid } from './hybrid';
 import { KeywordIndex } from './keyword-index';
 import {
@@ -39,6 +39,11 @@ export class SearchEngine {
   private indexQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly noatHome: string) {}
+
+  /** True once the embedding model is loaded and the vector index populated. */
+  isSemanticReady(): boolean {
+    return isEmbedderReady() && this.vectors !== undefined;
+  }
 
   private enqueue(task: () => Promise<void>): Promise<void> {
     this.indexQueue = this.indexQueue.then(task, task);
@@ -185,6 +190,7 @@ export class SearchEngine {
   }
 
   async searchSemantic(query: string): Promise<SearchResult[]> {
+    await this.ensureKeywordIndex();
     await this.ensureVectorIndex();
     const queryVector = await embedQuery(this.noatHome, query);
     const index = this.vectors;

@@ -3,6 +3,9 @@ import * as vscode from 'vscode';
 import { listAllNotes } from '../core/note-listing';
 import { getNotesRoot } from '../core/paths';
 import type { SearchEngine, SearchResult } from '../core/search/engine';
+import { logError, noatLog } from './log';
+
+let semanticFailureNotified = false;
 
 interface NoteQuickPickItem extends vscode.QuickPickItem {
   notePath?: string;
@@ -34,6 +37,9 @@ export async function showSearchPalette(noatHome: string, engine: SearchEngine):
   quickPick.placeholder = 'Search notes — exact words or vague concepts both work…';
   quickPick.matchOnDescription = false;
   quickPick.matchOnDetail = false;
+  quickPick.title = engine.isSemanticReady()
+    ? 'NOAT Search — hybrid (keyword + semantic)'
+    : 'NOAT Search — keyword (semantic warming up…)';
 
   let generation = 0;
   let debounceTimer: NodeJS.Timeout | undefined;
@@ -64,9 +70,23 @@ export async function showSearchPalette(noatHome: string, engine: SearchEngine):
       const hybridResults = await engine.search(query, 'hybrid');
       if (myGeneration !== generation) return;
       quickPick.items = hybridResults.map(toItem);
-    } catch {
-      // Embeddings unavailable (e.g. offline before first model download) —
-      // keyword results already shown.
+      quickPick.title = 'NOAT Search — hybrid (keyword + semantic)';
+    } catch (error) {
+      // Keyword results are already shown; tell the user semantic is down.
+      logError('semantic search failed', error);
+      quickPick.title = 'NOAT Search — keyword only (semantic failed, see NOAT output log)';
+      if (!semanticFailureNotified) {
+        semanticFailureNotified = true;
+        void vscode.window
+          .showWarningMessage(
+            
+            'NOAT: semantic search unavailable — using keyword results only.',
+            'Show Log'
+          )
+          .then((choice) => {
+            if (choice === 'Show Log') noatLog.show();
+          });
+      }
     } finally {
       if (myGeneration === generation) quickPick.busy = false;
     }

@@ -1,6 +1,8 @@
 **
 !dist/**
+!bin/**
 !media/**
 !package.json
 !README.md
 !LICENSE
+dist/**/*.map

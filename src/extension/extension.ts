@@ -15,6 +15,7 @@ import {
   scopeDir,
 } from '../core/store';
 import { GitSync } from './git-sync';
+import { logError } from './log';
 import { registerMcpServer } from './mcp-registration';
 import { NoteEditorProvider } from './note-editor';
 import { type NoatNode, NotesTreeProvider } from './notes-tree';
@@ -80,7 +81,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   setTimeout(() => {
     void vscode.window.withProgress(
       { location: vscode.ProgressLocation.Window, title: 'NOAT: indexing notes for search' },
-      () => searchEngine.ensureVectorIndex()
+      () =>
+        searchEngine.ensureVectorIndex().catch((error) => {
+          logError('background vector indexing failed', error);
+        })
     );
   }, 3000);
 

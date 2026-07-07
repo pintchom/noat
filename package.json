@@ -2,12 +2,12 @@
   "name": "noat",
   "displayName": "NOAT",
   "description": "Notion-style notes inside your IDE. Local-first, git-versioned, MCP-accessible.",
-  "version": "0.1.0",
-  "publisher": "maxpintchouk",
+  "version": "0.1.2",
+  "publisher": "pintchom",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/maxpintchouk/noat"
+    "url": "https://github.com/pintchom/noat"
   },
   "engines": {
     "vscode": "^1.90.0"
@@ -201,7 +201,8 @@
     "lint:fix": "biome check --write src",
     "test": "vitest run",
     "seed": "node scripts/seed-mock-notes.mjs",
-    "package": "vsce package"
+    "package": "vsce package",
+    "install-local": "node esbuild.mjs && vsce package --allow-missing-repository && cursor --install-extension noat-$npm_package_version.vsix --force"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
