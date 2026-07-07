@@ -1,7 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../core/editor-messages';
-import { resolveActiveIdeTheme } from './ide-theme';
 import { WorkspaceFileSearch, resolveWorkspacePath } from './workspace-files';
 
 const AUTO_SAVE_MS = 400;
@@ -91,16 +90,10 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
 
     const fileSearch = new WorkspaceFileSearch();
 
-    const sendIdeTheme = (): void => {
-      void resolveActiveIdeTheme().then((theme) => post({ type: 'ideTheme', theme }));
-    };
-    const themeSubscription = vscode.window.onDidChangeActiveColorTheme(sendIdeTheme);
-
     webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
       switch (message.type) {
         case 'ready':
           post({ type: 'init', text: document.getText() });
-          sendIdeTheme();
           break;
         case 'edit':
           void applyWebviewEdit(message.text);
@@ -118,7 +111,6 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.onDidDispose(() => {
       changeSubscription.dispose();
-      themeSubscription.dispose();
       if (saveTimer) clearTimeout(saveTimer);
     });
   }

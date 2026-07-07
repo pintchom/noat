@@ -4,6 +4,9 @@ import esbuild from 'esbuild';
 const watch = process.argv.includes('--watch');
 const production = process.argv.includes('--production');
 
+// Stale artifacts (e.g. dev-build sourcemaps) must not leak into packages.
+if (!watch) fs.rmSync('dist', { recursive: true, force: true });
+
 /** @type {import('esbuild').BuildOptions} */
 const shared = {
   bundle: true,

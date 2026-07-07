@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getRemoteOriginUrl, getRepoRoot } from '../core/git';
-import { pathToRepoKey, remoteUrlToRepoKey } from '../core/repo-key';
+import { pathToRepoKey, remoteUrlToRepoKey, repoKeyToLabel } from '../core/repo-key';
 import type { NoteScope } from '../core/store';
 
 export interface WorkspaceRepo {
@@ -24,11 +24,7 @@ export async function detectWorkspaceRepo(): Promise<WorkspaceRepo | undefined> 
 
   const remoteUrl = await getRemoteOriginUrl(repoRoot);
   const repoKey = remoteUrl ? remoteUrlToRepoKey(remoteUrl) : pathToRepoKey(repoRoot);
-  const label = (() => {
-    if (!remoteUrl) return folder.name;
-    const parts = repoKey.split('--');
-    return parts.length > 1 ? parts.slice(1).join('/') : repoKey;
-  })();
+  const label = remoteUrl ? repoKeyToLabel(repoKey) : folder.name;
 
   return { scope: { type: 'repo', repoKey }, label, rootPath: repoRoot };
 }

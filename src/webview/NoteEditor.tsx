@@ -1,3 +1,4 @@
+import { codeBlockOptions } from '@blocknote/code-block';
 import { BlockNoteSchema, type PartialBlock, defaultInlineContentSpecs } from '@blocknote/core';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
@@ -5,12 +6,10 @@ import {
   SuggestionMenuController,
   useCreateBlockNote,
 } from '@blocknote/react';
-import { useEffect, useMemo, useState } from 'react';
-import type { IdeThemeJson } from '../core/editor-messages';
+import { useEffect, useState } from 'react';
 import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
 import { searchWorkspaceFiles } from './file-search-client';
-import { clearHighlighterCache, createIdeCodeBlockOptions } from './ide-highlighter';
 import '@blocknote/mantine/style.css';
 
 const schema = BlockNoteSchema.create({
@@ -41,26 +40,17 @@ function useVsCodeDarkTheme(): boolean {
 
 export function NoteEditor({
   note,
-  ideTheme,
   onEdit,
 }: {
   note: NoteFile;
-  ideTheme: IdeThemeJson | undefined;
   onEdit: (text: string) => void;
 }) {
   const [title, setTitle] = useState(note.title);
-  const bodyIsDark = useVsCodeDarkTheme();
-  const isDark = ideTheme ? ideTheme.type === 'dark' : bodyIsDark;
-
-  // One highlighter per mount; the App remounts us when the IDE theme changes.
-  const codeBlock = useMemo(() => {
-    clearHighlighterCache();
-    return createIdeCodeBlockOptions(ideTheme, isDark);
-  }, [ideTheme, isDark]);
+  const isDark = useVsCodeDarkTheme();
 
   const editor = useCreateBlockNote({
     schema,
-    codeBlock,
+    codeBlock: codeBlockOptions,
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 

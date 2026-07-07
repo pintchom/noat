@@ -2,12 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { getRemoteOriginUrl, getRepoRoot } from '../core/git';
 import { NOTE_EXTENSION, type NoteFile, serializeNote, titleToFileName } from '../core/note';
-import { readNoteByPath, resolveNotePath } from '../core/note-listing';
+import { resolveNotePath } from '../core/note-listing';
 import { pathToRepoKey, remoteUrlToRepoKey } from '../core/repo-key';
-
-export async function readNoteFile(noatHome: string, notePath: string): Promise<NoteFile> {
-  return readNoteByPath(noatHome, notePath);
-}
 
 export async function writeNoteFile(
   noatHome: string,

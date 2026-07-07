@@ -1,13 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { listAllNotes } from '../core/note-listing';
+import { listAllNotes, readNoteByPath } from '../core/note-listing';
 import { blocksToPlainText } from '../core/note-text';
 import { getNoatHome } from '../core/paths';
 import { SearchEngine } from '../core/search/engine';
 import { initStore } from '../core/store';
 import { blocksToMarkdown, markdownToBlocks } from './markdown';
-import { createNoteFile, readNoteFile, repoScopeForCwd, writeNoteFile } from './notes';
+import { createNoteFile, repoScopeForCwd, writeNoteFile } from './notes';
 
 const INSTRUCTIONS = `NOAT is the user's personal note system, stored on their machine and edited
 inside their IDE with a Notion-style editor. You can read, search, create, and
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
       },
     },
     async ({ notePath, includeBlocks }) => {
-      const note = await readNoteFile(noatHome, notePath);
+      const note = await readNoteByPath(noatHome, notePath);
       const markdown = await blocksToMarkdown(note.blocks);
       return json({
         notePath,
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
       inputSchema: { notePath: z.string(), markdown: z.string() },
     },
     async ({ notePath, markdown }) => {
-      const note = await readNoteFile(noatHome, notePath);
+      const note = await readNoteByPath(noatHome, notePath);
       const newBlocks = await markdownToBlocks(markdown);
       await writeNoteFile(noatHome, notePath, {
         ...note,
@@ -168,7 +168,7 @@ async function main(): Promise<void> {
       inputSchema: { notePath: z.string(), markdown: z.string() },
     },
     async ({ notePath, markdown }) => {
-      const note = await readNoteFile(noatHome, notePath);
+      const note = await readNoteByPath(noatHome, notePath);
       const blocks = await markdownToBlocks(markdown);
       await writeNoteFile(noatHome, notePath, { ...note, blocks });
       return json({ replaced: notePath, blocks: blocks.length });
@@ -199,7 +199,7 @@ async function main(): Promise<void> {
       inputSchema: { notePath: z.string() },
     },
     async ({ notePath }) => {
-      const note = await readNoteFile(noatHome, notePath);
+      const note = await readNoteByPath(noatHome, notePath);
       const lines = blocksToPlainText(note.blocks).split('\n').slice(0, 30);
       return json({ notePath, title: note.title, updatedAt: note.updatedAt, preview: lines });
     }

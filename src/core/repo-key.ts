@@ -30,6 +30,12 @@ export function remoteUrlToRepoKey(remoteUrl: string): string {
     .replace(/[^a-z0-9._-]/g, '-');
 }
 
+/** Human label for a repo key: "github.com--foo--bar" -> "foo/bar". */
+export function repoKeyToLabel(repoKey: string): string {
+  const parts = repoKey.split('--');
+  return parts.length > 1 ? parts.slice(1).join('/') : repoKey;
+}
+
 /** Fallback scope key for repos without a remote: name plus a short path hash. */
 export function pathToRepoKey(repoPath: string): string {
   const hash = createHash('sha256').update(repoPath).digest('hex').slice(0, 8);

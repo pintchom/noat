@@ -4,28 +4,10 @@
  * File paths are workspace-relative (prefixed with the folder name in
  * multi-root workspaces) so links survive machine moves.
  */
-/**
- * The active IDE color theme, resolved from its JSON contribution so the
- * webview can drive shiki with the user's real token colors.
- */
-export interface IdeThemeJson {
-  name: string;
-  type: 'light' | 'dark';
-  fg: string;
-  bg: string;
-  colors: Record<string, string>;
-  settings: Array<{
-    name?: string;
-    scope?: string | string[];
-    settings: { foreground?: string; background?: string; fontStyle?: string };
-  }>;
-}
-
 export type HostToWebviewMessage =
   | { type: 'init'; text: string }
   | { type: 'update'; text: string }
-  | { type: 'fileResults'; requestId: number; files: string[] }
-  | { type: 'ideTheme'; theme: IdeThemeJson | undefined };
+  | { type: 'fileResults'; requestId: number; files: string[] };
 
 export type WebviewToHostMessage =
   | { type: 'ready' }

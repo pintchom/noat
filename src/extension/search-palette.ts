@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { listAllNotes } from '../core/note-listing';
 import { getNotesRoot } from '../core/paths';
+import { repoKeyToLabel } from '../core/repo-key';
 import type { SearchEngine, SearchResult } from '../core/search/engine';
 import { logError, noatLog } from './log';
 
@@ -12,9 +13,7 @@ interface NoteQuickPickItem extends vscode.QuickPickItem {
 }
 
 function scopeLabel(scope: string): string {
-  if (scope === 'global') return 'Global';
-  const parts = scope.split('--');
-  return parts.length > 1 ? parts.slice(1).join('/') : scope;
+  return scope === 'global' ? 'Global' : repoKeyToLabel(scope);
 }
 
 function toItem(result: SearchResult): NoteQuickPickItem {
@@ -79,7 +78,6 @@ export async function showSearchPalette(noatHome: string, engine: SearchEngine):
         semanticFailureNotified = true;
         void vscode.window
           .showWarningMessage(
-            
             'NOAT: semantic search unavailable — using keyword results only.',
             'Show Log'
           )

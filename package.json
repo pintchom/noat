@@ -201,13 +201,12 @@
     "lint:fix": "biome check --write src",
     "test": "vitest run",
     "seed": "node scripts/seed-mock-notes.mjs",
-    "package": "vsce package",
-    "install-local": "node esbuild.mjs && vsce package --allow-missing-repository && cursor --install-extension noat-$npm_package_version.vsix --force"
+    "package": "node esbuild.mjs --production && vsce package --allow-missing-repository",
+    "install-local": "npm run package && cursor --install-extension noat-$npm_package_version.vsix --force"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "jsonc-parser": "^3.3.1",
     "minisearch": "^7.2.0",
     "zod": "^3.24.0"
   },
@@ -218,11 +217,6 @@
     "@blocknote/mantine": "^0.48.1",
     "@blocknote/react": "^0.48.1",
     "@blocknote/server-util": "^0.48.1",
-    "@shikijs/core": "^4.3.1",
-    "@shikijs/engine-javascript": "^4.3.1",
-    "@shikijs/langs-precompiled": "^4.3.1",
-    "@shikijs/themes": "^4.3.1",
-    "@shikijs/types": "^4.3.1",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",

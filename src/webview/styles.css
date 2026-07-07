@@ -99,12 +99,7 @@ body {
  * run — undo that and theme the block like the IDE instead.
  */
 .bn-block-content[data-content-type="codeBlock"] {
-  /* --prosemirror-highlight-bg is set by shiki from the active IDE theme,
-     so the block matches the real editor background exactly. */
-  background: var(
-    --prosemirror-highlight-bg,
-    var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.12))
-  ) !important;
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.12)) !important;
   border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.25));
   border-radius: 6px;
 }
@@ -112,8 +107,8 @@ body {
 .bn-block-content[data-content-type="codeBlock"] pre,
 .bn-block-content[data-content-type="codeBlock"] code {
   background: transparent !important;
-  color: var(--prosemirror-highlight, var(--vscode-editor-foreground));
-  /* Match the IDE's editor typography exactly. */
+  color: var(--vscode-editor-foreground);
+  /* Match the IDE's editor typography. */
   font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
   font-size: var(--vscode-editor-font-size, 13px);
   font-weight: var(--vscode-editor-font-weight, normal);
