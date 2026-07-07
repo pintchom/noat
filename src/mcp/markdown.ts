@@ -1,7 +1,23 @@
+import { defaultBlockSpecs } from '@blocknote/core';
 import { ServerBlockNoteEditor } from '@blocknote/server-util';
 import type { NoteFile } from '../core/note';
 
 type Block = NoteFile['blocks'][number];
+
+// type -> prop keys its schema actually allows. Converters throw on unknown
+// props, and note files in the wild may carry extras.
+const allowedProps = new Map<string, Set<string>>(
+  Object.entries(defaultBlockSpecs).map(([type, spec]) => [
+    type,
+    new Set(Object.keys(spec.config.propSchema)),
+  ])
+);
+
+function sanitizeProps(type: string, props: unknown): unknown {
+  const allowed = allowedProps.get(type);
+  if (!allowed || typeof props !== 'object' || props === null) return props;
+  return Object.fromEntries(Object.entries(props).filter(([key]) => allowed.has(key)));
+}
 
 let editor: ServerBlockNoteEditor | undefined;
 
@@ -59,8 +75,10 @@ function sanitizeBlocks(blocks: Block[]): Block[] {
     })();
 
     const children = (block as { children?: Block[] }).children;
+    const props = (block as { props?: unknown }).props;
     return {
       ...block,
+      ...(props !== undefined && { props: sanitizeProps(block.type, props) }),
       ...(content !== undefined && { content }),
       ...(Array.isArray(children) && { children: sanitizeBlocks(children) }),
     } as Block;

@@ -50,7 +50,13 @@ try {
     capabilities: {},
     clientInfo: { name: 'smoke', version: '0' },
   });
-  console.log('initialized:', init.result.serverInfo.name, '| instructions:', init.result.instructions.length, 'chars');
+  console.log(
+    'initialized:',
+    init.result.serverInfo.name,
+    '| instructions:',
+    init.result.instructions.length,
+    'chars'
+  );
   notify('notifications/initialized', {});
 
   const tools = await request('tools/list', {});
@@ -78,7 +84,12 @@ try {
   });
   const note = toolText(read);
   console.log('read markdown:\n---\n' + note.markdown + '\n---');
-  console.log('blocks:', note.blocks.length, '| all have ids:', note.blocks.every((b) => typeof b.id === 'string'));
+  console.log(
+    'blocks:',
+    note.blocks.length,
+    '| all have ids:',
+    note.blocks.every((b) => typeof b.id === 'string')
+  );
 
   const search = await request('tools/call', {
     name: 'search_notes',

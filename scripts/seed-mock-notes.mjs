@@ -37,20 +37,34 @@ const block = (type, props, content, children = []) => ({
   children,
 });
 
+// Each block type only accepts its schema's props — extras break converters.
+const bareBlock = (type, props, content, children = []) => ({
+  id: randomUUID(),
+  type,
+  props,
+  content,
+  children,
+});
+
 const p = (content, children) => block('paragraph', {}, inline(content), children);
 const h = (level, content) => block('heading', { level }, inline(content));
 const bullet = (content, children) => block('bulletListItem', {}, inline(content), children);
 const num = (content, children) => block('numberedListItem', {}, inline(content), children);
 const check = (checked, content, children) =>
   block('checkListItem', { checked }, inline(content), children);
-const quote = (content) => block('quote', {}, inline(content));
+const quote = (content) =>
+  bareBlock('quote', { textColor: 'default', backgroundColor: 'default' }, inline(content));
 const code = (language, text) =>
-  block('codeBlock', { language }, [{ type: 'text', text, styles: {} }]);
+  bareBlock('codeBlock', { language }, [{ type: 'text', text, styles: {} }]);
 const table = (rows) =>
-  block('table', {}, {
-    type: 'tableContent',
-    rows: rows.map((cells) => ({ cells: cells.map((cell) => inline(cell)) })),
-  });
+  bareBlock(
+    'table',
+    { textColor: 'default' },
+    {
+      type: 'tableContent',
+      rows: rows.map((cells) => ({ cells: cells.map((cell) => inline(cell)) })),
+    }
+  );
 
 // ---------------------------------------------------------------------------
 // Git helpers
@@ -368,7 +382,12 @@ actions.push({
       created: daysAgo(33, 9),
       blocks: [
         h(1, 'Dashboard performance audit'),
-        p([t('Baseline LCP: '), t('4.8s', { textColor: 'red', bold: true }), t('  Target: '), t('< 2.0s', { textColor: 'green', bold: true })]),
+        p([
+          t('Baseline LCP: '),
+          t('4.8s', { textColor: 'red', bold: true }),
+          t('  Target: '),
+          t('< 2.0s', { textColor: 'green', bold: true }),
+        ]),
         h(2, 'Findings'),
         table([
           ['Issue', 'Cost', 'Fix'],
@@ -378,11 +397,18 @@ actions.push({
           ['Waterfall API calls', '1.2s', 'parallel fetch in loader'],
         ]),
         h(2, 'Quick wins shipped'),
-        check(true, [t('Lazy-load charts: '), t('React.lazy(() => import("./Charts"))', { code: true })]),
+        check(true, [
+          t('Lazy-load charts: '),
+          t('React.lazy(() => import("./Charts"))', { code: true }),
+        ]),
         check(true, 'Parallel loader fetches'),
         check(false, 'Virtualize OrgTable (10k rows)'),
         h(2, 'After first pass'),
-        p([t('LCP now '), t('2.6s', { textColor: 'orange', bold: true }), t(' - virtualization should get us under 2.')]),
+        p([
+          t('LCP now '),
+          t('2.6s', { textColor: 'orange', bold: true }),
+          t(' - virtualization should get us under 2.'),
+        ]),
       ],
     }),
 });
@@ -427,9 +453,17 @@ actions.push({
       created: daysAgo(9, 21),
       blocks: [
         h(1, 'Weekend hack: launcher'),
-        p([t('Tauri + fuzzy matcher. Window summon under '), t('80ms', { bold: true }), t(' or it feels broken.')]),
+        p([
+          t('Tauri + fuzzy matcher. Window summon under '),
+          t('80ms', { bold: true }),
+          t(' or it feels broken.'),
+        ]),
         bullet('fzf-style scoring: bonus for camelCase boundaries and path separators'),
-        bullet([t('Preload the window, just toggle visibility - '), t('never', { italic: true }), t(' cold-start on hotkey')]),
+        bullet([
+          t('Preload the window, just toggle visibility - '),
+          t('never', { italic: true }),
+          t(' cold-start on hotkey'),
+        ]),
         code(
           'rust',
           `fn score(query: &str, candidate: &str) -> i64 {
@@ -455,12 +489,29 @@ actions.push({
       created: daysAgo(58),
       blocks: [
         h(1, 'To read'),
-        check(true, [link('https://www.hillelwayne.com/post/are-we-really-engineers/', 'Are We Really Engineers?'), t(' - Hillel Wayne')]),
-        check(true, [link('https://jvns.ca/blog/2024/01/01/git-commits/', 'How git commits work'), t(' - Julia Evans')]),
-        check(false, [link('https://www.prosemirror.net/docs/guide/', 'ProseMirror guide'), t(' - for NOAT block internals')]),
-        check(false, [link('https://modelcontextprotocol.io/docs', 'MCP spec'), t(' - resources vs tools split')]),
+        check(true, [
+          link(
+            'https://www.hillelwayne.com/post/are-we-really-engineers/',
+            'Are We Really Engineers?'
+          ),
+          t(' - Hillel Wayne'),
+        ]),
+        check(true, [
+          link('https://jvns.ca/blog/2024/01/01/git-commits/', 'How git commits work'),
+          t(' - Julia Evans'),
+        ]),
+        check(false, [
+          link('https://www.prosemirror.net/docs/guide/', 'ProseMirror guide'),
+          t(' - for NOAT block internals'),
+        ]),
+        check(false, [
+          link('https://modelcontextprotocol.io/docs', 'MCP spec'),
+          t(' - resources vs tools split'),
+        ]),
         h(2, 'Notes on finished reads'),
-        quote('Wayne: "crossover projects" - software people underestimate how much other engineering disciplines also improvise.'),
+        quote(
+          'Wayne: "crossover projects" - software people underestimate how much other engineering disciplines also improvise.'
+        ),
       ],
     }),
 });
@@ -487,7 +538,10 @@ actions.push({
 }`
         ),
         h(3, 'psql: kill a stuck query'),
-        code('sql', "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '5 minutes';"),
+        code(
+          'sql',
+          "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '5 minutes';"
+        ),
       ],
     }),
 });
@@ -502,12 +556,19 @@ actions.push({
       created: daysAgo(30, 19),
       blocks: [
         h(1, 'Idea backlog'),
-        num([t('NOAT', { bold: true }), t(' - notes in the IDE, MCP-accessible, git-versioned '), t('(building it!)', { textColor: 'green' })]),
+        num([
+          t('NOAT', { bold: true }),
+          t(' - notes in the IDE, MCP-accessible, git-versioned '),
+          t('(building it!)', { textColor: 'green' }),
+        ]),
         num('CLI that turns a failing test into a minimal repro repo', [
           bullet('Bisect imports until the failure disappears'),
         ]),
         num('Slack bot that summarizes deploy channels into a weekly digest'),
-        num([t('Personal Google', { italic: true }), t(' - agents write learnings to notes, semantic search over everything (Michael\'s idea)')]),
+        num([
+          t('Personal Google', { italic: true }),
+          t(" - agents write learnings to notes, semantic search over everything (Michael's idea)"),
+        ]),
       ],
     }),
 });
@@ -572,7 +633,11 @@ const edits = [
     title: 'Ledger migration plan',
     blocks: [
       h(2, 'Phase 1 progress'),
-      p([t('Internal orgs on ledger reads since Monday. Nightly reconciliation: '), t('0 diffs, 6 nights straight', { textColor: 'green', bold: true }), t('.')]),
+      p([
+        t('Internal orgs on ledger reads since Monday. Nightly reconciliation: '),
+        t('0 diffs, 6 nights straight', { textColor: 'green', bold: true }),
+        t('.'),
+      ]),
     ],
   },
   {
