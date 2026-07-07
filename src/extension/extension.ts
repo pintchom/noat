@@ -1,6 +1,8 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { getNoatHome } from '../core/paths';
+import { getNotesRoot } from '../core/paths';
+import { SearchEngine } from '../core/search/engine';
 import {
   type NoteScope,
   createFolder,
@@ -15,8 +17,8 @@ import {
 import { GitSync } from './git-sync';
 import { registerMcpServer } from './mcp-registration';
 import { NoteEditorProvider } from './note-editor';
-import { collectAllNotes } from './note-search';
 import { type NoatNode, NotesTreeProvider } from './notes-tree';
+import { showSearchPalette } from './search-palette';
 import { detectWorkspaceRepo } from './workspace-scope';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -71,21 +73,36 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
 
+  // Hybrid search: keyword index warms immediately; the vector index (local
+  // embedding model, ~25 MB one-time download) builds in the background.
+  const searchEngine = new SearchEngine(noatHome);
+  void searchEngine.ensureKeywordIndex();
+  setTimeout(() => {
+    void vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Window, title: 'NOAT: indexing notes for search' },
+      () => searchEngine.ensureVectorIndex()
+    );
+  }, 3000);
+
   context.subscriptions.push(
-    vscode.commands.registerCommand('noat.searchNotes', async () => {
-      const notes = await collectAllNotes(noatHome);
-      const items = notes.map((note) => ({
-        label: `$(note) ${note.title}`,
-        description: note.scopeLabel,
-        detail: note.folder ? `$(folder) ${note.folder}` : undefined,
-        absPath: note.absPath,
-      }));
-      const picked = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Search notes by title, scope, or folder…',
-        matchOnDescription: true,
-        matchOnDetail: true,
-      });
-      if (picked) await vscode.commands.executeCommand('noat.openNote', picked.absPath);
+    vscode.commands.registerCommand('noat.searchNotes', () =>
+      showSearchPalette(noatHome, searchEngine)
+    ),
+    vscode.commands.registerCommand('noat.rebuildSearchIndex', () =>
+      vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'NOAT: rebuilding search index' },
+        (progress) =>
+          searchEngine.rebuild((done, total) => {
+            progress.report({ message: `${done}/${total} sections embedded` });
+          })
+      )
+    ),
+    // Keep search indexes fresh as notes are saved (editor or agent writes).
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      const notesRoot = getNotesRoot(noatHome);
+      const filePath = document.uri.fsPath;
+      if (!filePath.startsWith(notesRoot + path.sep) || !filePath.endsWith('.noat.json')) return;
+      void searchEngine.updateNote(path.relative(notesRoot, filePath));
     })
   );
 

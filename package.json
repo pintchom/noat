@@ -95,9 +95,18 @@
       {
         "command": "noat.openNote",
         "title": "NOAT: Open Note"
+      },
+      {
+        "command": "noat.rebuildSearchIndex",
+        "title": "NOAT: Rebuild Search Index"
       }
     ],
     "keybindings": [
+      {
+        "command": "noat.searchNotes",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s"
+      },
       {
         "command": "noat.searchNotes",
         "key": "ctrl+alt+p",
@@ -195,8 +204,10 @@
     "package": "vsce package"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "jsonc-parser": "^3.3.1",
+    "minisearch": "^7.2.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

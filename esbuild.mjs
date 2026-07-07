@@ -19,7 +19,9 @@ const extensionCtx = await esbuild.context({
   platform: 'node',
   format: 'cjs',
   target: 'node20',
-  external: ['vscode'],
+  // onnxruntime-node ships native binaries (resolved from node_modules at
+  // runtime); sharp is an optional transformers.js dep we don't use.
+  external: ['vscode', 'onnxruntime-node', 'sharp'],
   // Prefer ESM package entries: jsonc-parser's UMD/CJS build uses dynamic
   // requires that esbuild can't inline, breaking the bundle at runtime.
   mainFields: ['module', 'main'],
@@ -32,6 +34,7 @@ const mcpCtx = await esbuild.context({
   platform: 'node',
   format: 'cjs',
   target: 'node20',
+  external: ['onnxruntime-node', 'sharp'],
   mainFields: ['module', 'main'],
 });
 

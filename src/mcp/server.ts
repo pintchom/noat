@@ -1,18 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { listAllNotes } from '../core/note-listing';
+import { blocksToPlainText } from '../core/note-text';
 import { getNoatHome } from '../core/paths';
+import { SearchEngine } from '../core/search/engine';
 import { initStore } from '../core/store';
 import { blocksToMarkdown, markdownToBlocks } from './markdown';
-import {
-  blocksToPlainText,
-  createNoteFile,
-  listAllNotes,
-  readNoteFile,
-  repoScopeForCwd,
-  searchNotes,
-  writeNoteFile,
-} from './notes';
+import { createNoteFile, readNoteFile, repoScopeForCwd, writeNoteFile } from './notes';
 
 const INSTRUCTIONS = `NOAT is the user's personal note system, stored on their machine and edited
 inside their IDE with a Notion-style editor. You can read, search, create, and
@@ -96,14 +91,37 @@ async function main(): Promise<void> {
     }
   );
 
+  const engine = new SearchEngine(noatHome);
+
   server.registerTool(
     'search_notes',
     {
       description:
-        'Full-text search across all notes (title + content). Returns matching notes with snippet lines. Optionally filter by scope.',
-      inputSchema: { query: z.string(), scope: z.string().optional() },
+        'Search across all notes. mode "keyword" = exact/fuzzy term matching (grep-like), "semantic" = conceptual similarity via local embeddings, "hybrid" (default) = both merged. Returns ranked notes with snippets. Optionally filter by scope.',
+      inputSchema: {
+        query: z.string(),
+        scope: z.string().optional(),
+        mode: z.enum(['keyword', 'semantic', 'hybrid']).optional(),
+      },
     },
-    async ({ query, scope }) => json(await searchNotes(noatHome, query, scope))
+    async ({ query, scope, mode }) => {
+      const requested = mode ?? 'hybrid';
+      const { results, effectiveMode, warning } = await (async () => {
+        try {
+          return { results: await engine.search(query, requested), effectiveMode: requested };
+        } catch (error) {
+          // Semantic path can fail offline (model download); degrade to keyword.
+          if (requested === 'keyword') throw error;
+          return {
+            results: await engine.search(query, 'keyword'),
+            effectiveMode: 'keyword' as const,
+            warning: `semantic search unavailable (${error instanceof Error ? error.message : String(error)})`,
+          };
+        }
+      })();
+      const filtered = scope ? results.filter((result) => result.scope === scope) : results;
+      return json({ mode: effectiveMode, ...(warning && { warning }), results: filtered });
+    }
   );
 
   server.registerTool(
