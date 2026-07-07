@@ -1,0 +1,170 @@
+{
+  "name": "noat",
+  "displayName": "NOAT",
+  "description": "Notion-style notes inside your IDE. Local-first, git-versioned, MCP-accessible.",
+  "version": "0.1.0",
+  "publisher": "maxpintchouk",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maxpintchouk/noat"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Notebooks",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "noat",
+          "title": "NOAT",
+          "icon": "media/noat.svg"
+        }
+      ]
+    },
+    "views": {
+      "noat": [
+        {
+          "id": "noatNotes",
+          "name": "Notes",
+          "icon": "media/noat.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "noat.newNote",
+        "title": "NOAT: New Note",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "noat.newFolder",
+        "title": "NOAT: New Folder",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "noat.refresh",
+        "title": "NOAT: Refresh Notes",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "noat.rename",
+        "title": "Rename"
+      },
+      {
+        "command": "noat.delete",
+        "title": "Delete"
+      },
+      {
+        "command": "noat.moveToGlobal",
+        "title": "Move to Global"
+      },
+      {
+        "command": "noat.moveToRepo",
+        "title": "Move to This Repo"
+      },
+      {
+        "command": "noat.openNotesRepo",
+        "title": "NOAT: Open Notes Store in Terminal"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "noat.newNote",
+          "when": "view == noatNotes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "noat.newFolder",
+          "when": "view == noatNotes",
+          "group": "navigation@2"
+        },
+        {
+          "command": "noat.refresh",
+          "when": "view == noatNotes",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "noat.newNote",
+          "when": "view == noatNotes && viewItem =~ /scope|folder/",
+          "group": "1_create@1"
+        },
+        {
+          "command": "noat.newFolder",
+          "when": "view == noatNotes && viewItem =~ /scope|folder/",
+          "group": "1_create@2"
+        },
+        {
+          "command": "noat.rename",
+          "when": "view == noatNotes && viewItem =~ /note|folder/",
+          "group": "2_modify@1"
+        },
+        {
+          "command": "noat.delete",
+          "when": "view == noatNotes && viewItem =~ /note|folder/",
+          "group": "2_modify@2"
+        },
+        {
+          "command": "noat.moveToGlobal",
+          "when": "view == noatNotes && viewItem == note-repo",
+          "group": "3_move@1"
+        },
+        {
+          "command": "noat.moveToRepo",
+          "when": "view == noatNotes && viewItem == note-global",
+          "group": "3_move@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "noat.rename",
+          "when": "false"
+        },
+        {
+          "command": "noat.delete",
+          "when": "false"
+        },
+        {
+          "command": "noat.moveToGlobal",
+          "when": "false"
+        },
+        {
+          "command": "noat.moveToRepo",
+          "when": "false"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src",
+    "test": "vitest run",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

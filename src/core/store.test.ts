@@ -1,0 +1,123 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { isGitRepo } from './git';
+import { getGlobalNotesDir } from './paths';
+import {
+  createFolder,
+  createNote,
+  deleteEntry,
+  initStore,
+  listEntries,
+  moveToScope,
+  readNote,
+  renameNote,
+  scopeDir,
+  writeNote,
+} from './store';
+
+let noatHome: string;
+let globalDir: string;
+
+beforeEach(async () => {
+  noatHome = await fs.mkdtemp(path.join(os.tmpdir(), 'noat-test-'));
+  await initStore(noatHome);
+  globalDir = getGlobalNotesDir(noatHome);
+});
+
+afterEach(async () => {
+  await fs.rm(noatHome, { recursive: true, force: true });
+});
+
+describe('initStore', () => {
+  it('creates the layout and a git repo', async () => {
+    await expect(fs.access(globalDir)).resolves.toBeUndefined();
+    expect(await isGitRepo(noatHome)).toBe(true);
+  });
+
+  it('is idempotent', async () => {
+    await expect(initStore(noatHome)).resolves.toBeUndefined();
+  });
+});
+
+describe('notes CRUD', () => {
+  it('creates a note with a valid envelope', async () => {
+    const notePath = await createNote(globalDir, 'My First Note');
+    const note = await readNote(notePath);
+    expect(note.title).toBe('My First Note');
+    expect(note.version).toBe(1);
+    expect(note.blocks).toEqual([]);
+  });
+
+  it('deduplicates colliding titles', async () => {
+    const first = await createNote(globalDir, 'Dup');
+    const second = await createNote(globalDir, 'Dup');
+    expect(path.basename(first)).toBe('Dup.noat.json');
+    expect(path.basename(second)).toBe('Dup 2.noat.json');
+  });
+
+  it('sanitizes unsafe titles', async () => {
+    const notePath = await createNote(globalDir, 'a/b:c*d');
+    expect(path.basename(notePath)).toBe('a-b-c-d.noat.json');
+  });
+
+  it('round-trips writes and bumps updatedAt', async () => {
+    const notePath = await createNote(globalDir, 'Note');
+    const note = await readNote(notePath);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await writeNote(notePath, { ...note, blocks: [{ id: 'b1', type: 'paragraph' }] });
+    const reread = await readNote(notePath);
+    expect(reread.blocks).toHaveLength(1);
+    expect(reread.updatedAt > note.updatedAt).toBe(true);
+  });
+
+  it('renames a note file and its embedded title', async () => {
+    const notePath = await createNote(globalDir, 'Old');
+    const newPath = await renameNote(notePath, 'New');
+    expect(path.basename(newPath)).toBe('New.noat.json');
+    expect((await readNote(newPath)).title).toBe('New');
+    await expect(fs.access(notePath)).rejects.toThrow();
+  });
+
+  it('deletes notes and folders', async () => {
+    const notePath = await createNote(globalDir, 'Bye');
+    await deleteEntry(notePath);
+    await expect(fs.access(notePath)).rejects.toThrow();
+  });
+});
+
+describe('listEntries', () => {
+  it('lists folders before notes, alphabetically, skipping dotfiles', async () => {
+    await createNote(globalDir, 'zeta');
+    await createNote(globalDir, 'alpha');
+    await createFolder(globalDir, 'stuff');
+    await fs.writeFile(path.join(globalDir, '.hidden'), '');
+    await fs.writeFile(path.join(globalDir, 'random.txt'), 'not a note');
+
+    const entries = await listEntries(globalDir, { type: 'global' });
+    expect(entries.map((e) => `${e.kind}:${e.name}`)).toEqual([
+      'folder:stuff',
+      'note:alpha',
+      'note:zeta',
+    ]);
+  });
+});
+
+describe('moveToScope', () => {
+  it('moves a note between scopes', async () => {
+    const notePath = await createNote(globalDir, 'Movable');
+    const repoScope = { type: 'repo', repoKey: 'github.com--foo--bar' } as const;
+    const newPath = await moveToScope(notePath, noatHome, repoScope);
+    expect(newPath).toBe(path.join(scopeDir(noatHome, repoScope), 'Movable.noat.json'));
+    expect((await readNote(newPath)).title).toBe('Movable');
+  });
+
+  it('deduplicates on collision in the target scope', async () => {
+    const repoScope = { type: 'repo', repoKey: 'k' } as const;
+    await createNote(scopeDir(noatHome, repoScope), 'Same');
+    const notePath = await createNote(globalDir, 'Same');
+    const newPath = await moveToScope(notePath, noatHome, repoScope);
+    expect(path.basename(newPath)).toBe('Same 2.noat.json');
+  });
+});
