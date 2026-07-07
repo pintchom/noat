@@ -1,0 +1,69 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family);
+}
+
+#root {
+  height: 100%;
+}
+
+.noat-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  opacity: 0.7;
+}
+
+.noat-error pre {
+  max-width: 80ch;
+  overflow: auto;
+  background: var(--vscode-textCodeBlock-background);
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+/* Document column, Google-Docs style */
+.noat-note {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 48px 24px 40vh;
+}
+
+.noat-title {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  font-family: inherit;
+  font-size: 2.2em;
+  font-weight: 700;
+  line-height: 1.2;
+  /* Align with BlockNote's content gutter (space reserved for drag handles). */
+  padding: 0 54px 12px;
+}
+
+.noat-title::placeholder {
+  opacity: 0.35;
+}
+
+/* Let the editor sit on the IDE background instead of BlockNote's own. */
+.bn-editor {
+  background: transparent !important;
+}
+
+.bn-container {
+  background: transparent;
+}

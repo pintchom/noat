@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 /**
@@ -29,7 +28,8 @@ export function createEmptyNote(title: string): NoteFile {
   const now = new Date().toISOString();
   return {
     version: 1,
-    id: randomUUID(),
+    // Global crypto: works in Node 20+ and browsers, keeping this module isomorphic.
+    id: crypto.randomUUID(),
     title,
     createdAt: now,
     updatedAt: now,

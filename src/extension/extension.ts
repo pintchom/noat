@@ -15,6 +15,7 @@ import {
   scopeDir,
 } from '../core/store';
 import { AutoCommitter } from './auto-commit';
+import { NoteEditorProvider } from './note-editor';
 import { type NoatNode, NotesTreeProvider } from './notes-tree';
 import { detectWorkspaceRepo } from './workspace-scope';
 
@@ -28,6 +29,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     vscode.window.createTreeView('noatNotes', { treeDataProvider: tree }),
+    NoteEditorProvider.register(context),
     { dispose: () => committer.dispose() }
   );
 

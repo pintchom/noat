@@ -1,0 +1,76 @@
+import type { PartialBlock } from '@blocknote/core';
+import { BlockNoteView } from '@blocknote/mantine';
+import { useCreateBlockNote } from '@blocknote/react';
+import { useEffect, useState } from 'react';
+import { type NoteFile, serializeNote } from '../core/note';
+import '@blocknote/mantine/style.css';
+
+function readDarkTheme(): boolean {
+  return (
+    document.body.classList.contains('vscode-dark') ||
+    document.body.classList.contains('vscode-high-contrast')
+  );
+}
+
+function useVsCodeDarkTheme(): boolean {
+  const [isDark, setIsDark] = useState(readDarkTheme);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => setIsDark(readDarkTheme()));
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+}
+
+export function NoteEditor({
+  note,
+  onEdit,
+}: {
+  note: NoteFile;
+  onEdit: (text: string) => void;
+}) {
+  const [title, setTitle] = useState(note.title);
+  const isDark = useVsCodeDarkTheme();
+
+  const editor = useCreateBlockNote({
+    initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
+  });
+
+  const emit = (nextTitle: string): void => {
+    onEdit(
+      serializeNote({
+        ...note,
+        title: nextTitle,
+        updatedAt: new Date().toISOString(),
+        blocks: editor.document as unknown as NoteFile['blocks'],
+      })
+    );
+  };
+
+  return (
+    <div className="noat-note">
+      <input
+        className="noat-title"
+        value={title}
+        placeholder="Untitled"
+        onChange={(event) => {
+          setTitle(event.target.value);
+          emit(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            editor.focus();
+          }
+        }}
+      />
+      <BlockNoteView
+        editor={editor}
+        theme={isDark ? 'dark' : 'light'}
+        onChange={() => emit(title)}
+      />
+    </div>
+  );
+}

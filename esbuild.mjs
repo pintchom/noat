@@ -30,7 +30,27 @@ const mcpCtx = await esbuild.context({
   target: 'node20',
 });
 
-const contexts = [extensionCtx, mcpCtx];
+const webviewCtx = await esbuild.context({
+  ...shared,
+  entryPoints: ['src/webview/main.tsx'],
+  outfile: 'dist/webview.js',
+  platform: 'browser',
+  format: 'iife',
+  target: 'es2022',
+  jsx: 'automatic',
+  // BlockNote packages expose their CSS through the "style" export condition.
+  conditions: ['style'],
+  // Inline fonts/images referenced by BlockNote CSS so the webview stays two files.
+  loader: {
+    '.woff': 'dataurl',
+    '.woff2': 'dataurl',
+    '.ttf': 'dataurl',
+    '.svg': 'dataurl',
+    '.png': 'dataurl',
+  },
+});
+
+const contexts = [extensionCtx, mcpCtx, webviewCtx];
 
 if (watch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()));
