@@ -165,6 +165,7 @@
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
     "test": "vitest run",
+    "seed": "node scripts/seed-mock-notes.mjs",
     "package": "vsce package"
   },
   "dependencies": {
