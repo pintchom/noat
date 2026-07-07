@@ -51,9 +51,9 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoatNode> {
     item.iconPath = new vscode.ThemeIcon('note');
     item.resourceUri = vscode.Uri.file(entry.absPath);
     item.command = {
-      command: 'vscode.open',
+      command: 'noat.openNote',
       title: 'Open Note',
-      arguments: [vscode.Uri.file(entry.absPath)],
+      arguments: [entry.absPath],
     };
     return item;
   }

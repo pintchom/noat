@@ -16,6 +16,7 @@ import {
 } from '../core/store';
 import { AutoCommitter } from './auto-commit';
 import { NoteEditorProvider } from './note-editor';
+import { collectAllNotes } from './note-search';
 import { type NoatNode, NotesTreeProvider } from './notes-tree';
 import { detectWorkspaceRepo } from './workspace-scope';
 
@@ -56,6 +57,33 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
   };
 
+  // Notes open to the side by default so the note sits next to your code.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('noat.openNote', async (absPath: string) => {
+      await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(absPath), {
+        viewColumn: vscode.ViewColumn.Beside,
+      });
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('noat.searchNotes', async () => {
+      const notes = await collectAllNotes(noatHome);
+      const items = notes.map((note) => ({
+        label: `$(note) ${note.title}`,
+        description: note.scopeLabel,
+        detail: note.folder ? `$(folder) ${note.folder}` : undefined,
+        absPath: note.absPath,
+      }));
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Search notes by title, scope, or folder…',
+        matchOnDescription: true,
+        matchOnDetail: true,
+      });
+      if (picked) await vscode.commands.executeCommand('noat.openNote', picked.absPath);
+    })
+  );
+
   register('noat.newNote', async (node) => {
     const title = await vscode.window.showInputBox({
       prompt: 'Note title',
@@ -65,7 +93,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const notePath = await createNote(targetDirOf(node), title);
     tree.refresh();
     committer.notify(`create: ${noteNameFromFile(path.basename(notePath))}`);
-    await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(notePath));
+    await vscode.commands.executeCommand('noat.openNote', notePath);
   });
 
   register('noat.newFolder', async (node) => {

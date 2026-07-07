@@ -1,9 +1,22 @@
-import type { PartialBlock } from '@blocknote/core';
+import { codeBlockOptions } from '@blocknote/code-block';
+import { BlockNoteSchema, type PartialBlock, defaultInlineContentSpecs } from '@blocknote/core';
 import { BlockNoteView } from '@blocknote/mantine';
-import { useCreateBlockNote } from '@blocknote/react';
+import {
+  type DefaultReactSuggestionItem,
+  SuggestionMenuController,
+  useCreateBlockNote,
+} from '@blocknote/react';
 import { useEffect, useState } from 'react';
 import { type NoteFile, serializeNote } from '../core/note';
+import { FileLink } from './FileLink';
 import '@blocknote/mantine/style.css';
+
+const schema = BlockNoteSchema.create({
+  inlineContentSpecs: {
+    ...defaultInlineContentSpecs,
+    fileLink: FileLink,
+  },
+});
 
 function readDarkTheme(): boolean {
   return (
@@ -24,17 +37,41 @@ function useVsCodeDarkTheme(): boolean {
   return isDark;
 }
 
+/** Rank workspace files against the @-menu query: filename hits first. */
+function filterFiles(files: string[], query: string): string[] {
+  const q = query.toLowerCase();
+  if (q.length === 0) return files.slice(0, 12);
+
+  const scored = files.flatMap((file) => {
+    const lower = file.toLowerCase();
+    const name = lower.split('/').pop() ?? lower;
+    if (name.startsWith(q)) return [{ file, score: 0 }];
+    if (name.includes(q)) return [{ file, score: 1 }];
+    if (lower.includes(q)) return [{ file, score: 2 }];
+    return [];
+  });
+
+  return scored
+    .sort((a, b) => a.score - b.score || a.file.length - b.file.length)
+    .slice(0, 12)
+    .map((entry) => entry.file);
+}
+
 export function NoteEditor({
   note,
+  workspaceFiles,
   onEdit,
 }: {
   note: NoteFile;
+  workspaceFiles: string[];
   onEdit: (text: string) => void;
 }) {
   const [title, setTitle] = useState(note.title);
   const isDark = useVsCodeDarkTheme();
 
   const editor = useCreateBlockNote({
+    schema,
+    codeBlock: codeBlockOptions,
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 
@@ -48,6 +85,15 @@ export function NoteEditor({
       })
     );
   };
+
+  const getFileItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
+    filterFiles(workspaceFiles, query).map((file) => ({
+      title: file.split('/').pop() ?? file,
+      subtext: file,
+      onItemClick: () => {
+        editor.insertInlineContent([{ type: 'fileLink', props: { path: file } }, ' ']);
+      },
+    }));
 
   return (
     <div className="noat-note">
@@ -66,11 +112,9 @@ export function NoteEditor({
           }
         }}
       />
-      <BlockNoteView
-        editor={editor}
-        theme={isDark ? 'dark' : 'light'}
-        onChange={() => emit(title)}
-      />
+      <BlockNoteView editor={editor} theme={isDark ? 'dark' : 'light'} onChange={() => emit(title)}>
+        <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
+      </BlockNoteView>
     </div>
   );
 }

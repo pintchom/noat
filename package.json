@@ -86,6 +86,28 @@
       {
         "command": "noat.openNotesRepo",
         "title": "NOAT: Open Notes Store in Terminal"
+      },
+      {
+        "command": "noat.searchNotes",
+        "title": "NOAT: Search Notes",
+        "icon": "$(search)"
+      },
+      {
+        "command": "noat.openNote",
+        "title": "NOAT: Open Note"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "noat.searchNotes",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p"
+      },
+      {
+        "command": "noat.searchNotes",
+        "key": "ctrl+p",
+        "mac": "cmd+p",
+        "when": "focusedView == noatNotes"
       }
     ],
     "menus": {
@@ -140,6 +162,10 @@
       ],
       "commandPalette": [
         {
+          "command": "noat.openNote",
+          "when": "false"
+        },
+        {
           "command": "noat.rename",
           "when": "false"
         },
@@ -173,6 +199,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@blocknote/code-block": "^0.48.1",
     "@blocknote/core": "^0.48.1",
     "@blocknote/mantine": "^0.48.1",
     "@blocknote/react": "^0.48.1",

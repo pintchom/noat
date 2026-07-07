@@ -3,6 +3,36 @@ import * as vscode from 'vscode';
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../core/editor-messages';
 
 const AUTO_SAVE_MS = 1500;
+const MAX_WORKSPACE_FILES = 5000;
+
+/** Workspace-relative paths of files the user can @-mention in a note. */
+async function listWorkspaceFiles(): Promise<string[]> {
+  const uris = await vscode.workspace.findFiles(
+    '**/*',
+    '{**/node_modules/**,**/.git/**,**/dist/**,**/build/**,**/out/**}',
+    MAX_WORKSPACE_FILES
+  );
+  return uris
+    .map((uri) => vscode.workspace.asRelativePath(uri, false))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+async function openWorkspaceFile(relativePath: string): Promise<void> {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  if (!folder) {
+    vscode.window.showWarningMessage('NOAT: open a workspace folder to follow file links.');
+    return;
+  }
+  const uri = vscode.Uri.joinPath(folder.uri, relativePath);
+  try {
+    await vscode.window.showTextDocument(uri, {
+      viewColumn: vscode.ViewColumn.Beside,
+      preserveFocus: false,
+    });
+  } catch {
+    vscode.window.showWarningMessage(`NOAT: file not found in this workspace: ${relativePath}`);
+  }
+}
 
 /**
  * Custom editor for .noat.json files. The webview runs BlockNote; this side
@@ -74,10 +104,18 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
     webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
       switch (message.type) {
         case 'ready':
-          post({ type: 'init', text: document.getText() });
+          void listWorkspaceFiles().then((workspaceFiles) => {
+            post({ type: 'init', text: document.getText(), workspaceFiles });
+          });
           break;
         case 'edit':
           void applyWebviewEdit(message.text);
+          break;
+        case 'requestWorkspaceFiles':
+          void listWorkspaceFiles().then((files) => post({ type: 'workspaceFiles', files }));
+          break;
+        case 'openFile':
+          void openWorkspaceFile(message.path);
           break;
       }
     });

@@ -14,16 +14,22 @@ type LoadState =
 
 export function App({ vscode }: { vscode: VsCodeApi }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
+  const [workspaceFiles, setWorkspaceFiles] = useState<string[]>([]);
   // Bumped when the document changes outside the editor (undo, git revert, agent writes).
   const [externalVersion, setExternalVersion] = useState(0);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<HostToWebviewMessage>) => {
       const message = event.data;
+      if (message.type === 'workspaceFiles') {
+        setWorkspaceFiles(message.files);
+        return;
+      }
       if (message.type !== 'init' && message.type !== 'update') return;
       try {
         const note = parseNote(message.text);
         setState({ status: 'ready', note, initialText: message.text });
+        if (message.type === 'init') setWorkspaceFiles(message.workspaceFiles);
         if (message.type === 'update') setExternalVersion((v) => v + 1);
       } catch (error) {
         setState({
@@ -57,6 +63,7 @@ export function App({ vscode }: { vscode: VsCodeApi }) {
       // re-initializes from the new content instead of merging states.
       key={externalVersion}
       note={state.note}
+      workspaceFiles={workspaceFiles}
       onEdit={(text) => vscode.postMessage({ type: 'edit', text })}
     />
   );

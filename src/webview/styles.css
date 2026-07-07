@@ -59,6 +59,31 @@ body {
   opacity: 0.35;
 }
 
+/* @-mention file link chips */
+.noat-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: none;
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
+  color: var(--vscode-textLink-foreground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.noat-file-link:hover {
+  text-decoration: underline;
+}
+
+.noat-file-link-icon {
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
 /* Let the editor sit on the IDE background instead of BlockNote's own. */
 .bn-editor {
   background: transparent !important;
@@ -66,4 +91,45 @@ body {
 
 .bn-container {
   background: transparent;
+}
+
+/*
+ * Code blocks. VS Code's webview default stylesheet gives every `code`
+ * element its own background, which renders as a gray chip around each text
+ * run — undo that and theme the block like the IDE instead.
+ */
+.bn-block-content[data-content-type="codeBlock"] {
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.12)) !important;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.25));
+  border-radius: 6px;
+}
+
+.bn-block-content[data-content-type="codeBlock"] pre,
+.bn-block-content[data-content-type="codeBlock"] code {
+  background: transparent !important;
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+/* Shiki emits per-token colors as inline styles; spans must stay chip-free. */
+.bn-block-content[data-content-type="codeBlock"] code span {
+  background: transparent !important;
+}
+
+/* Language picker in the code block corner */
+.bn-block-content[data-content-type="codeBlock"] select,
+.bn-block-content[data-content-type="codeBlock"] .bn-select {
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Inline code style (backtick text) — keep a chip, but themed */
+.bn-inline-content code,
+.bn-editor :not([data-content-type="codeBlock"]) > * code {
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  font-size: 0.9em;
 }
