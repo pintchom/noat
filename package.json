@@ -16,6 +16,15 @@
     "Notebooks",
     "Other"
   ],
+  "keywords": [
+    "notes",
+    "notion",
+    "note-taking",
+    "mcp",
+    "knowledge-base",
+    "semantic-search",
+    "blocknote"
+  ],
   "main": "./dist/extension.js",
   "activationEvents": [
     "onStartupFinished"
