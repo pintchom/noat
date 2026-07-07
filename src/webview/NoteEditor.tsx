@@ -1,4 +1,3 @@
-import { codeBlockOptions } from '@blocknote/code-block';
 import { BlockNoteSchema, type PartialBlock, defaultInlineContentSpecs } from '@blocknote/core';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
@@ -6,9 +5,12 @@ import {
   SuggestionMenuController,
   useCreateBlockNote,
 } from '@blocknote/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { IdeThemeJson } from '../core/editor-messages';
 import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
+import { searchWorkspaceFiles } from './file-search-client';
+import { clearHighlighterCache, createIdeCodeBlockOptions } from './ide-highlighter';
 import '@blocknote/mantine/style.css';
 
 const schema = BlockNoteSchema.create({
@@ -37,41 +39,28 @@ function useVsCodeDarkTheme(): boolean {
   return isDark;
 }
 
-/** Rank workspace files against the @-menu query: filename hits first. */
-function filterFiles(files: string[], query: string): string[] {
-  const q = query.toLowerCase();
-  if (q.length === 0) return files.slice(0, 12);
-
-  const scored = files.flatMap((file) => {
-    const lower = file.toLowerCase();
-    const name = lower.split('/').pop() ?? lower;
-    if (name.startsWith(q)) return [{ file, score: 0 }];
-    if (name.includes(q)) return [{ file, score: 1 }];
-    if (lower.includes(q)) return [{ file, score: 2 }];
-    return [];
-  });
-
-  return scored
-    .sort((a, b) => a.score - b.score || a.file.length - b.file.length)
-    .slice(0, 12)
-    .map((entry) => entry.file);
-}
-
 export function NoteEditor({
   note,
-  workspaceFiles,
+  ideTheme,
   onEdit,
 }: {
   note: NoteFile;
-  workspaceFiles: string[];
+  ideTheme: IdeThemeJson | undefined;
   onEdit: (text: string) => void;
 }) {
   const [title, setTitle] = useState(note.title);
-  const isDark = useVsCodeDarkTheme();
+  const bodyIsDark = useVsCodeDarkTheme();
+  const isDark = ideTheme ? ideTheme.type === 'dark' : bodyIsDark;
+
+  // One highlighter per mount; the App remounts us when the IDE theme changes.
+  const codeBlock = useMemo(() => {
+    clearHighlighterCache();
+    return createIdeCodeBlockOptions(ideTheme, isDark);
+  }, [ideTheme, isDark]);
 
   const editor = useCreateBlockNote({
     schema,
-    codeBlock: codeBlockOptions,
+    codeBlock,
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 
@@ -87,7 +76,7 @@ export function NoteEditor({
   };
 
   const getFileItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
-    filterFiles(workspaceFiles, query).map((file) => ({
+    (await searchWorkspaceFiles(query)).map((file) => ({
       title: file.split('/').pop() ?? file,
       subtext: file,
       onItemClick: () => {

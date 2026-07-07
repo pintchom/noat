@@ -195,6 +195,7 @@
     "package": "vsce package"
   },
   "dependencies": {
+    "jsonc-parser": "^3.3.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {
@@ -203,6 +204,11 @@
     "@blocknote/core": "^0.48.1",
     "@blocknote/mantine": "^0.48.1",
     "@blocknote/react": "^0.48.1",
+    "@shikijs/core": "^4.3.1",
+    "@shikijs/engine-javascript": "^4.3.1",
+    "@shikijs/langs-precompiled": "^4.3.1",
+    "@shikijs/themes": "^4.3.1",
+    "@shikijs/types": "^4.3.1",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",

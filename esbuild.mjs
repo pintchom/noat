@@ -19,6 +19,9 @@ const extensionCtx = await esbuild.context({
   format: 'cjs',
   target: 'node20',
   external: ['vscode'],
+  // Prefer ESM package entries: jsonc-parser's UMD/CJS build uses dynamic
+  // requires that esbuild can't inline, breaking the bundle at runtime.
+  mainFields: ['module', 'main'],
 });
 
 const mcpCtx = await esbuild.context({

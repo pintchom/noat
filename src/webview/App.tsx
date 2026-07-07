@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react';
-import type { HostToWebviewMessage, WebviewToHostMessage } from '../core/editor-messages';
+import { useEffect, useRef, useState } from 'react';
+import type {
+  HostToWebviewMessage,
+  IdeThemeJson,
+  WebviewToHostMessage,
+} from '../core/editor-messages';
 import { type NoteFile, parseNote } from '../core/note';
 import { NoteEditor } from './NoteEditor';
 
@@ -10,32 +14,53 @@ interface VsCodeApi {
 type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; note: NoteFile; initialText: string };
+  | { status: 'ready'; note: NoteFile };
 
 export function App({ vscode }: { vscode: VsCodeApi }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
-  const [workspaceFiles, setWorkspaceFiles] = useState<string[]>([]);
-  // Bumped when the document changes outside the editor (undo, git revert, agent writes).
-  const [externalVersion, setExternalVersion] = useState(0);
+  const [ideTheme, setIdeTheme] = useState<IdeThemeJson | undefined>(undefined);
+  const [themeReceived, setThemeReceived] = useState(false);
+  // Remount key: bumped on external document changes and theme changes so
+  // BlockNote re-initializes instead of merging states.
+  const [editorVersion, setEditorVersion] = useState(0);
+  // Latest text the editor emitted — the App's `note` state goes stale while
+  // typing (our own edits aren't echoed back), so theme remounts restore from here.
+  const latestTextRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<HostToWebviewMessage>) => {
       const message = event.data;
-      if (message.type === 'workspaceFiles') {
-        setWorkspaceFiles(message.files);
-        return;
-      }
-      if (message.type !== 'init' && message.type !== 'update') return;
-      try {
-        const note = parseNote(message.text);
-        setState({ status: 'ready', note, initialText: message.text });
-        if (message.type === 'init') setWorkspaceFiles(message.workspaceFiles);
-        if (message.type === 'update') setExternalVersion((v) => v + 1);
-      } catch (error) {
-        setState({
-          status: 'error',
-          message: error instanceof Error ? error.message : String(error),
-        });
+      switch (message.type) {
+        case 'init':
+        case 'update':
+          try {
+            const note = parseNote(message.text);
+            latestTextRef.current = message.text;
+            setState({ status: 'ready', note });
+            if (message.type === 'update') setEditorVersion((v) => v + 1);
+          } catch (error) {
+            setState({
+              status: 'error',
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
+          break;
+        case 'ideTheme': {
+          const currentText = latestTextRef.current;
+          if (currentText) {
+            try {
+              setState({ status: 'ready', note: parseNote(currentText) });
+            } catch {
+              // Keep previous state; the text mid-edit should always parse.
+            }
+          }
+          setIdeTheme(message.theme);
+          setThemeReceived(true);
+          setEditorVersion((v) => v + 1);
+          break;
+        }
+        default:
+          break;
       }
     };
     window.addEventListener('message', onMessage);
@@ -43,7 +68,7 @@ export function App({ vscode }: { vscode: VsCodeApi }) {
     return () => window.removeEventListener('message', onMessage);
   }, [vscode]);
 
-  if (state.status === 'loading') {
+  if (state.status === 'loading' || !themeReceived) {
     return <div className="noat-status">Loading note…</div>;
   }
 
@@ -59,12 +84,13 @@ export function App({ vscode }: { vscode: VsCodeApi }) {
 
   return (
     <NoteEditor
-      // Remount the editor when an external change arrives so BlockNote
-      // re-initializes from the new content instead of merging states.
-      key={externalVersion}
+      key={editorVersion}
       note={state.note}
-      workspaceFiles={workspaceFiles}
-      onEdit={(text) => vscode.postMessage({ type: 'edit', text })}
+      ideTheme={ideTheme}
+      onEdit={(text) => {
+        latestTextRef.current = text;
+        vscode.postMessage({ type: 'edit', text });
+      }}
     />
   );
 }

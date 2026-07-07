@@ -7,14 +7,12 @@ import {
   createNote,
   deleteEntry,
   initStore,
-  isNoteFile,
   moveToScope,
-  noteNameFromFile,
   renameFolder,
   renameNote,
   scopeDir,
 } from '../core/store';
-import { AutoCommitter } from './auto-commit';
+import { GitSync } from './git-sync';
 import { NoteEditorProvider } from './note-editor';
 import { collectAllNotes } from './note-search';
 import { type NoatNode, NotesTreeProvider } from './notes-tree';
@@ -26,12 +24,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const workspaceRepo = await detectWorkspaceRepo();
   const tree = new NotesTreeProvider(noatHome, workspaceRepo);
-  const committer = new AutoCommitter(noatHome);
+
+  // Note edits save to disk immediately; the store is only committed when the
+  // user commits in a workspace repo (see GitSync).
+  const gitSync = new GitSync(noatHome);
+  void gitSync.start();
 
   context.subscriptions.push(
     vscode.window.createTreeView('noatNotes', { treeDataProvider: tree }),
     NoteEditorProvider.register(context),
-    { dispose: () => committer.dispose() }
+    gitSync
   );
 
   /** Directory a create action should target, based on where it was invoked. */
@@ -92,7 +94,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (!title) return;
     const notePath = await createNote(targetDirOf(node), title);
     tree.refresh();
-    committer.notify(`create: ${noteNameFromFile(path.basename(notePath))}`);
     await vscode.commands.executeCommand('noat.openNote', notePath);
   });
 
@@ -104,7 +105,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (!name) return;
     await createFolder(targetDirOf(node), name);
     tree.refresh();
-    committer.notify(`create folder: ${name}`);
   });
 
   register('noat.refresh', async () => {
@@ -125,7 +125,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       await renameFolder(entry.absPath, newName);
     }
     tree.refresh();
-    committer.notify(`rename: ${entry.name} -> ${newName}`);
   });
 
   register('noat.delete', async (node) => {
@@ -140,15 +139,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (confirmed !== 'Delete') return;
     await deleteEntry(entry.absPath);
     tree.refresh();
-    committer.notify(`delete: ${entry.name}`);
   });
 
   const moveTo = async (node: NoatNode | undefined, targetScope: NoteScope): Promise<void> => {
     if (node?.type !== 'entry') return;
     await moveToScope(node.entry.absPath, noatHome, targetScope);
     tree.refresh();
-    const scopeName = targetScope.type === 'global' ? 'global' : 'repo';
-    committer.notify(`move to ${scopeName}: ${node.entry.name}`);
   };
 
   register('noat.moveToGlobal', (node) => moveTo(node, { type: 'global' }));
@@ -167,15 +163,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     terminal.show();
   });
 
-  // Auto-commit every note save (covers the raw JSON editor now and the
-  // BlockNote custom editor in Stage 2 — both save through TextDocuments).
   context.subscriptions.push(
-    vscode.workspace.onDidSaveTextDocument((document) => {
-      const filePath = document.uri.fsPath;
-      if (!filePath.startsWith(noatHome + path.sep)) return;
-      if (!isNoteFile(filePath)) return;
-      committer.notify(`edit: ${noteNameFromFile(path.basename(filePath))}`);
-    }),
     vscode.workspace.onDidChangeWorkspaceFolders(async () => {
       tree.setWorkspaceRepo(await detectWorkspaceRepo());
     })

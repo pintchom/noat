@@ -52,6 +52,14 @@ export async function getRemoteOriginUrl(repoDir: string): Promise<string | unde
   }
 }
 
+export async function getLastCommitSubject(repoDir: string): Promise<string | undefined> {
+  try {
+    return await git(repoDir, ['log', '-1', '--format=%s']);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function getRepoRoot(dir: string): Promise<string | undefined> {
   try {
     return await git(dir, ['rev-parse', '--show-toplevel']);

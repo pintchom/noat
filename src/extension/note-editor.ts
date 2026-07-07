@@ -1,29 +1,17 @@
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../core/editor-messages';
+import { resolveActiveIdeTheme } from './ide-theme';
+import { WorkspaceFileSearch, resolveWorkspacePath } from './workspace-files';
 
-const AUTO_SAVE_MS = 1500;
-const MAX_WORKSPACE_FILES = 5000;
-
-/** Workspace-relative paths of files the user can @-mention in a note. */
-async function listWorkspaceFiles(): Promise<string[]> {
-  const uris = await vscode.workspace.findFiles(
-    '**/*',
-    '{**/node_modules/**,**/.git/**,**/dist/**,**/build/**,**/out/**}',
-    MAX_WORKSPACE_FILES
-  );
-  return uris
-    .map((uri) => vscode.workspace.asRelativePath(uri, false))
-    .sort((a, b) => a.localeCompare(b));
-}
+const AUTO_SAVE_MS = 400;
 
 async function openWorkspaceFile(relativePath: string): Promise<void> {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
+  const uri = resolveWorkspacePath(relativePath);
+  if (!uri) {
     vscode.window.showWarningMessage('NOAT: open a workspace folder to follow file links.');
     return;
   }
-  const uri = vscode.Uri.joinPath(folder.uri, relativePath);
   try {
     await vscode.window.showTextDocument(uri, {
       viewColumn: vscode.ViewColumn.Beside,
@@ -101,18 +89,26 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
       post({ type: 'update', text });
     });
 
+    const fileSearch = new WorkspaceFileSearch();
+
+    const sendIdeTheme = (): void => {
+      void resolveActiveIdeTheme().then((theme) => post({ type: 'ideTheme', theme }));
+    };
+    const themeSubscription = vscode.window.onDidChangeActiveColorTheme(sendIdeTheme);
+
     webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
       switch (message.type) {
         case 'ready':
-          void listWorkspaceFiles().then((workspaceFiles) => {
-            post({ type: 'init', text: document.getText(), workspaceFiles });
-          });
+          post({ type: 'init', text: document.getText() });
+          sendIdeTheme();
           break;
         case 'edit':
           void applyWebviewEdit(message.text);
           break;
-        case 'requestWorkspaceFiles':
-          void listWorkspaceFiles().then((files) => post({ type: 'workspaceFiles', files }));
+        case 'searchFiles':
+          void fileSearch.search(message.query).then((files) => {
+            post({ type: 'fileResults', requestId: message.requestId, files });
+          });
           break;
         case 'openFile':
           void openWorkspaceFile(message.path);
@@ -122,6 +118,7 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.onDidDispose(() => {
       changeSubscription.dispose();
+      themeSubscription.dispose();
       if (saveTimer) clearTimeout(saveTimer);
     });
   }
