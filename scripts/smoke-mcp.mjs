@@ -67,7 +67,8 @@ try {
     arguments: {
       scope: 'global',
       title: 'Smoke Test',
-      markdown: '# Hello\n\nSome **bold** text.\n\n- [ ] a task\n\n```ts\nconst x = 1;\n```',
+      markdown:
+        '# Hello\n\nSome **bold** text, see `src/core/store.ts:42`.\n\n- [ ] a task\n\n```ts\nconst x = 1;\n```',
     },
   });
   const notePath = toolText(created).created;
@@ -90,6 +91,16 @@ try {
     '| all have ids:',
     note.blocks.every((b) => typeof b.id === 'string')
   );
+
+  const inline = note.blocks.flatMap((b) => (Array.isArray(b.content) ? b.content : []));
+  const chip = inline.find((item) => item.type === 'fileLink');
+  if (chip?.props?.path !== 'src/core/store.ts') {
+    throw new Error(`expected a fileLink chip for src/core/store.ts, got ${JSON.stringify(chip)}`);
+  }
+  if (!note.markdown.includes('`src/core/store.ts:42`')) {
+    throw new Error('expected markdown rendering to show the chip as `src/core/store.ts:42`');
+  }
+  console.log('fileLink chip promoted and round-tripped:', chip.props.path);
 
   const search = await request('tools/call', {
     name: 'search_notes',
