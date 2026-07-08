@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-07-08
+
+- Add marketplace icon
+
 ## 0.1.2 — 2026-07-07
 
 Initial working release.

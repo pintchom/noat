@@ -2,13 +2,14 @@
   "name": "noat",
   "displayName": "NOAT",
   "description": "Notion-style notes inside your IDE. Local-first, git-versioned, MCP-accessible.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "pintchom",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/pintchom/noat"
   },
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.90.0"
   },
