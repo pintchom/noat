@@ -59,6 +59,33 @@ export class WorkspaceFileSearch {
   }
 }
 
+/**
+ * Pick where to open a followed file link: a group already showing the file
+ * wins (focus, don't duplicate), then the most recently used text editor's
+ * group, then any group other than the note's, then a fresh split beside.
+ */
+export function pickFileViewColumn(uri: vscode.Uri): vscode.ViewColumn {
+  const target = uri.toString();
+  const hasFile = (tab: vscode.Tab): boolean =>
+    tab.input instanceof vscode.TabInputText && tab.input.uri.toString() === target;
+
+  const groupsWithFile = vscode.window.tabGroups.all.filter((group) => group.tabs.some(hasFile));
+  const existing =
+    groupsWithFile.find((group) => group.tabs.some((tab) => tab.isActive && hasFile(tab))) ??
+    groupsWithFile[0];
+  if (existing) return existing.viewColumn;
+
+  // The chip click comes from the focused note webview, so activeTextEditor
+  // (MRU) and any non-active group both point away from the note.
+  const mruColumn = vscode.window.activeTextEditor?.viewColumn;
+  if (mruColumn !== undefined) return mruColumn;
+
+  const otherGroup = vscode.window.tabGroups.all.find(
+    (group) => group !== vscode.window.tabGroups.activeTabGroup
+  );
+  return otherGroup?.viewColumn ?? vscode.ViewColumn.Beside;
+}
+
 /** Resolve a stored @-mention path back to a Uri, handling multi-root prefixes. */
 export function resolveWorkspacePath(relativePath: string): vscode.Uri | undefined {
   const folders = vscode.workspace.workspaceFolders;
