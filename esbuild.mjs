@@ -56,10 +56,18 @@ fs.copyFileSync(
 
 // onnxruntime's native binding is require()d at runtime as
 // ../bin/napi-v6/<platform>/<arch>/ relative to the bundle in dist/, i.e.
-// <root>/bin. Copy the host platform's binaries so the packaged extension is
-// self-contained. (Marketplace builds will do this per-target.)
-const onnxBinSrc = `node_modules/onnxruntime-node/bin/napi-v6/${process.platform}/${process.arch}`;
-const onnxBinDest = `bin/napi-v6/${process.platform}/${process.arch}`;
+// <root>/bin. Copy the target platform's binaries so the packaged extension
+// is self-contained. NOAT_TARGET (e.g. "linux-x64", matching vsce --target)
+// selects the platform for release builds; defaults to the host.
+const [targetPlatform, targetArch] = (
+  process.env.NOAT_TARGET ?? `${process.platform}-${process.arch}`
+).split('-');
+const onnxBinSrc = `node_modules/onnxruntime-node/bin/napi-v6/${targetPlatform}/${targetArch}`;
+const onnxBinDest = `bin/napi-v6/${targetPlatform}/${targetArch}`;
+if (!fs.existsSync(onnxBinSrc)) {
+  throw new Error(`No onnxruntime binaries for ${targetPlatform}/${targetArch} (${onnxBinSrc})`);
+}
+fs.rmSync('bin', { recursive: true, force: true });
 fs.mkdirSync(onnxBinDest, { recursive: true });
 for (const file of fs.readdirSync(onnxBinSrc)) {
   fs.copyFileSync(`${onnxBinSrc}/${file}`, `${onnxBinDest}/${file}`);

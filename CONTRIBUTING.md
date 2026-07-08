@@ -58,4 +58,12 @@ npm run install-local  # package + install into Cursor
 
 ## Releases
 
-`npm run package` produces a `.vsix` with minified bundles and the host platform's ONNX runtime in `bin/`. Marketplace publishing (per-platform targets) is tracked on the roadmap.
+`npm run package` produces a `.vsix` with minified bundles and the host platform's ONNX runtime in `bin/`. Set `NOAT_TARGET` (e.g. `linux-x64`) to build for another platform.
+
+Publishing is automated: bump `version` in `package.json`, update `CHANGELOG.md`, then
+
+```bash
+git tag v<version> && git push origin v<version>
+```
+
+The release workflow builds platform-specific VSIXes (darwin-arm64, linux-x64/arm64, win32-x64/arm64) and publishes each to the VS Code Marketplace and Open VSX. It needs two repository secrets: `VSCE_PAT` and `OVSX_PAT`.
