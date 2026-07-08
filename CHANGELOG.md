@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 — 2026-07-08
+
+- Transparent icon background
+
 ## 0.1.3 — 2026-07-08
 
 - Add marketplace icon
