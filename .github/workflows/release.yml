@@ -16,6 +16,9 @@ jobs:
   publish:
     runs-on: macos-latest
     strategy:
+      # Parallel jobs race to create the extension on first publish and fail
+      # with "already exists" — publish one target at a time.
+      max-parallel: 1
       matrix:
         target:
           - darwin-arm64
@@ -46,12 +49,15 @@ jobs:
         run: npx vsce package --target ${{ matrix.target }}
 
       - name: Publish to VS Code Marketplace
-        run: npx vsce publish --packagePath *.vsix
+        run: npx vsce publish --packagePath *.vsix --skip-duplicate
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       - name: Publish to Open VSX
-        run: npx ovsx publish *.vsix -p "$OVSX_PAT"
+        # Runs even if the Marketplace step failed so one registry's hiccup
+        # doesn't block the other.
+        if: ${{ !cancelled() }}
+        run: npx ovsx publish *.vsix -p "$OVSX_PAT" --skip-duplicate
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
