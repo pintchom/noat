@@ -86,6 +86,10 @@ function sanitizeBlocks(blocks: Block[]): Block[] {
 }
 
 /** Ensure every block (and child) has the id our note schema requires. */
+export function prepareBlocks(blocks: Block[]): Block[] {
+  return ensureIds(blocks);
+}
+
 function ensureIds(blocks: Block[]): Block[] {
   return blocks.map((block) => {
     const children = (block as { children?: unknown }).children;

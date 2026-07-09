@@ -128,6 +128,17 @@
         "when": "focusedView == noatNotes"
       }
     ],
+    "configuration": {
+      "title": "NOAT",
+      "properties": {
+        "noat.mcp.useDirectJson": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Let MCP agents read and write notes as BlockNote JSON instead of markdown. Preserves colors, background highlights, file links, and other rich formatting that markdown conversion drops.",
+          "order": 1
+        }
+      }
+    },
     "menus": {
       "view/title": [
         {

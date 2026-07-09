@@ -6,6 +6,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 const noatHome = fs.mkdtempSync(path.join(os.tmpdir(), 'noat-mcp-smoke-'));
+const directJson =
+  process.env.NOAT_MCP_DIRECT_JSON === '1' || process.env.NOAT_MCP_DIRECT_JSON === 'true';
 const child = spawn('node', ['dist/mcp-server.js'], {
   env: { ...process.env, NOAT_HOME: noatHome },
   stdio: ['pipe', 'pipe', 'inherit'],
@@ -64,32 +66,83 @@ try {
 
   const created = await request('tools/call', {
     name: 'create_note',
-    arguments: {
-      scope: 'global',
-      title: 'Smoke Test',
-      markdown: '# Hello\n\nSome **bold** text.\n\n- [ ] a task\n\n```ts\nconst x = 1;\n```',
-    },
+    arguments: directJson
+      ? {
+          scope: 'global',
+          title: 'Smoke Test',
+          blocks: [
+            {
+              type: 'heading',
+              props: { level: 1, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+              content: [{ type: 'text', text: 'Hello', styles: {} }],
+              children: [],
+            },
+            {
+              type: 'paragraph',
+              props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+              content: [
+                { type: 'text', text: 'Some ', styles: {} },
+                { type: 'text', text: 'bold', styles: { bold: true } },
+                { type: 'text', text: ' text.', styles: {} },
+              ],
+              children: [],
+            },
+          ],
+        }
+      : {
+          scope: 'global',
+          title: 'Smoke Test',
+          markdown: '# Hello\n\nSome **bold** text.\n\n- [ ] a task\n\n```ts\nconst x = 1;\n```',
+        },
   });
   const notePath = toolText(created).created;
   console.log('created:', notePath);
 
   await request('tools/call', {
     name: 'append_to_note',
-    arguments: { notePath, markdown: '## Appended\n\nMore content here.' },
+    arguments: directJson
+      ? {
+          notePath,
+          blocks: [
+            {
+              type: 'heading',
+              props: { level: 2, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+              content: [{ type: 'text', text: 'Appended', styles: {} }],
+              children: [],
+            },
+            {
+              type: 'paragraph',
+              props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+              content: [{ type: 'text', text: 'More content here.', styles: { textColor: 'green' } }],
+              children: [],
+            },
+          ],
+        }
+      : { notePath, markdown: '## Appended\n\nMore content here.' },
   });
 
   const read = await request('tools/call', {
     name: 'read_note',
-    arguments: { notePath, includeBlocks: true },
+    arguments: directJson ? { notePath } : { notePath, includeBlocks: true },
   });
   const note = toolText(read);
-  console.log('read markdown:\n---\n' + note.markdown + '\n---');
-  console.log(
-    'blocks:',
-    note.blocks.length,
-    '| all have ids:',
-    note.blocks.every((b) => typeof b.id === 'string')
-  );
+  if (directJson) {
+    console.log('read blocks:', note.blocks.length);
+    console.log(
+      'blocks:',
+      note.blocks.length,
+      '| all have ids:',
+      note.blocks.every((b) => typeof b.id === 'string')
+    );
+  } else {
+    console.log('read markdown:\n---\n' + note.markdown + '\n---');
+    console.log(
+      'blocks:',
+      note.blocks.length,
+      '| all have ids:',
+      note.blocks.every((b) => typeof b.id === 'string')
+    );
+  }
 
   const search = await request('tools/call', {
     name: 'search_notes',
@@ -103,6 +156,7 @@ try {
   });
   console.log('repo scope:', JSON.stringify(toolText(scope).repoKey));
 
+  console.log('mode:', directJson ? 'direct-json' : 'markdown');
   console.log('SMOKE OK');
 } catch (error) {
   console.error('SMOKE FAILED', error);

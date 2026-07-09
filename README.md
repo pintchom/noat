@@ -103,6 +103,8 @@ Cursor registers the MCP server automatically. For other MCP clients, point at t
 
 The server works standalone — it reads `~/.noat` directly and doesn't need the editor running. Set `NOAT_HOME` to use a different store location.
 
+In Cursor, enable **NOAT: MCP Use Direct Json** in Settings to let agents read and write BlockNote JSON (preserving colors and rich formatting) instead of markdown. For manual `mcp.json` setups, set `NOAT_MCP_DIRECT_JSON=1` in the server's environment.
+
 ## Storage
 
 Everything lives in `~/.noat` (override with `NOAT_HOME`):
