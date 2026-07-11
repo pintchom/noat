@@ -97,6 +97,38 @@ try {
   });
   console.log('search hits:', JSON.stringify(toolText(search)));
 
+  const outline = await request('tools/call', {
+    name: 'get_note_outline',
+    arguments: { notePath },
+  });
+  const sections = toolText(outline).sections;
+  console.log('outline sections:', sections.map((s) => s.heading).join(' / '));
+
+  const sectionRead = await request('tools/call', {
+    name: 'read_note',
+    arguments: { notePath, section: 'Appended' },
+  });
+  const sliced = toolText(sectionRead);
+  if (!sliced.markdown.includes('More content') || sliced.markdown.includes('bold')) {
+    throw new Error(`section read returned the wrong slice: ${sliced.markdown}`);
+  }
+  console.log('section read: ok');
+
+  // Notes written after the keyword index was built must still be findable.
+  const late = await request('tools/call', {
+    name: 'create_note',
+    arguments: { scope: 'global', title: 'Late Note', markdown: 'About xylophone upkeep.' },
+  });
+  const lateSearch = await request('tools/call', {
+    name: 'search_notes',
+    arguments: { query: 'xylophone', mode: 'keyword' },
+  });
+  const lateHits = toolText(lateSearch).results;
+  if (!lateHits.some((hit) => hit.notePath === toolText(late).created)) {
+    throw new Error('keyword search missed a note created after the index was built');
+  }
+  console.log('late-write keyword search: ok');
+
   const scope = await request('tools/call', {
     name: 'get_current_repo_scope',
     arguments: { cwd: process.cwd() },
