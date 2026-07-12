@@ -1,5 +1,8 @@
 # NOAT
 
+<img width="1509" height="898" alt="noat_viz" src="https://github.com/user-attachments/assets/3b158153-6f75-44b2-9c51-7f950b3ac8b0" />
+
+
 **Notion-style notes that live in your IDE.** Local-first, git-versioned, searchable, and readable/writable by your AI agents over MCP.
 
 Stop taking notes in stray `.md` files or a separate app. NOAT gives you a real block editor inside Cursor / VS Code, keeps every note on your machine with its own git history, and hands your agents a full set of tools to read, search, and write your notes.
