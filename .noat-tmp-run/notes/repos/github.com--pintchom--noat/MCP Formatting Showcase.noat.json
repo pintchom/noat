@@ -1,0 +1,1049 @@
+{
+  "version": 1,
+  "id": "8f9dc414-8c4a-4f4a-a18f-ac05216fa257",
+  "title": "MCP Formatting Showcase",
+  "createdAt": "2026-07-09T01:27:10.325Z",
+  "updatedAt": "2026-07-09T01:27:10.325Z",
+  "blocks": [
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "MCP Formatting Showcase",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "87094bfd-8917-4e49-8537-1dc26ab4df4e"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Created by an agent through the ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "NOAT MCP server",
+          "styles": {
+            "bold": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " in ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "direct JSON mode",
+          "styles": {
+            "code": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " — every style below is native BlockNote, not lossy markdown.",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "55b827db-7bdb-4187-9721-6e2b4fade0d8"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Inline text styles",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "2e856be2-9c39-4cf1-9455-b9277d0854a9"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "bold",
+          "styles": {
+            "bold": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " · ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "italic",
+          "styles": {
+            "italic": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " · ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "underline",
+          "styles": {
+            "underline": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " · ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "strikethrough",
+          "styles": {
+            "strike": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " · ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "inline code",
+          "styles": {
+            "code": true
+          }
+        },
+        {
+          "type": "text",
+          "text": " · ",
+          "styles": {}
+        },
+        {
+          "type": "link",
+          "href": "https://blocknotejs.org",
+          "content": [
+            {
+              "type": "text",
+              "text": "hyperlink",
+              "styles": {}
+            }
+          ]
+        }
+      ],
+      "children": [],
+      "id": "0622e866-ed9d-4120-8153-f1b0eac54320"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Text colors",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "e99742fe-1954-47fc-9fc3-8461e4054ab4"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "red ",
+          "styles": {
+            "textColor": "red"
+          }
+        },
+        {
+          "type": "text",
+          "text": "orange ",
+          "styles": {
+            "textColor": "orange"
+          }
+        },
+        {
+          "type": "text",
+          "text": "yellow ",
+          "styles": {
+            "textColor": "yellow"
+          }
+        },
+        {
+          "type": "text",
+          "text": "green ",
+          "styles": {
+            "textColor": "green"
+          }
+        },
+        {
+          "type": "text",
+          "text": "blue ",
+          "styles": {
+            "textColor": "blue"
+          }
+        },
+        {
+          "type": "text",
+          "text": "purple ",
+          "styles": {
+            "textColor": "purple"
+          }
+        },
+        {
+          "type": "text",
+          "text": "pink ",
+          "styles": {
+            "textColor": "pink"
+          }
+        },
+        {
+          "type": "text",
+          "text": "gray",
+          "styles": {
+            "textColor": "gray"
+          }
+        }
+      ],
+      "children": [],
+      "id": "14cafabf-9e3b-42a5-9cb8-f30e6ca05608"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Background highlights",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "d19a4475-c887-4992-ac75-7bb80f0c5991"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "red highlight",
+          "styles": {
+            "backgroundColor": "red"
+          }
+        },
+        {
+          "type": "text",
+          "text": "  ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "yellow highlight",
+          "styles": {
+            "backgroundColor": "yellow"
+          }
+        },
+        {
+          "type": "text",
+          "text": "  ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "green highlight",
+          "styles": {
+            "backgroundColor": "green"
+          }
+        },
+        {
+          "type": "text",
+          "text": "  ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "blue highlight",
+          "styles": {
+            "backgroundColor": "blue"
+          }
+        },
+        {
+          "type": "text",
+          "text": "  ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "purple highlight",
+          "styles": {
+            "backgroundColor": "purple"
+          }
+        }
+      ],
+      "children": [],
+      "id": "67f63efe-23f2-486e-bf94-8d7d68455d4e"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Combined flair",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "16773fd5-ec0d-4cb7-a913-43095f05de06"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "SEV-1",
+          "styles": {
+            "textColor": "red",
+            "bold": true,
+            "backgroundColor": "yellow"
+          }
+        },
+        {
+          "type": "text",
+          "text": "  ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "shipped",
+          "styles": {
+            "textColor": "green",
+            "bold": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "  ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "deprecated",
+          "styles": {
+            "strike": true,
+            "textColor": "gray"
+          }
+        },
+        {
+          "type": "text",
+          "text": "  ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "WIP",
+          "styles": {
+            "italic": true,
+            "textColor": "orange",
+            "underline": true
+          }
+        }
+      ],
+      "children": [],
+      "id": "82d78997-1fa9-48f2-8084-6694e911d5fd"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Alignment",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "73a6ea98-4fbd-4c0e-88ba-b9d50a7ba8b1"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Left-aligned paragraph",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "1b827b04-8063-4dab-9c98-574ed6ae0f6a"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "center"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Centered paragraph",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "9d86e605-7d98-4076-af7d-355b72f5e546"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "right"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Right-aligned paragraph",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "a9919bcc-9b15-427f-a159-ae98f23068bf"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Lists",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "548fc922-8bc1-4fe8-aa15-b287ca441533"
+    },
+    {
+      "type": "bulletListItem",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Top-level bullet",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "43c59cbe-a8a4-4039-83e0-54203ad1d84c"
+    },
+    {
+      "type": "bulletListItem",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Nested bullets",
+          "styles": {}
+        }
+      ],
+      "children": [
+        {
+          "type": "bulletListItem",
+          "props": {
+            "textColor": "default",
+            "backgroundColor": "default",
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Child item A",
+              "styles": {}
+            }
+          ],
+          "children": [],
+          "id": "f01d1f29-7672-4a1d-a0e7-75d5e25f5a97"
+        },
+        {
+          "type": "bulletListItem",
+          "props": {
+            "textColor": "default",
+            "backgroundColor": "default",
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Child item B",
+              "styles": {}
+            }
+          ],
+          "children": [],
+          "id": "32ac8bae-e6f2-4390-8d0f-50bf19832e2f"
+        }
+      ],
+      "id": "d433d507-4c45-4fe5-83b6-761db80f23d9"
+    },
+    {
+      "type": "numberedListItem",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "First numbered item",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "8fc3a68e-9650-4372-8a1a-dbfa85d1f361"
+    },
+    {
+      "type": "numberedListItem",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Second with nested bullets",
+          "styles": {}
+        }
+      ],
+      "children": [
+        {
+          "type": "bulletListItem",
+          "props": {
+            "textColor": "default",
+            "backgroundColor": "default",
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Sub-point one",
+              "styles": {}
+            }
+          ],
+          "children": [],
+          "id": "b6916521-b7cf-480a-8d45-eb4365ae3cdd"
+        },
+        {
+          "type": "bulletListItem",
+          "props": {
+            "textColor": "default",
+            "backgroundColor": "default",
+            "textAlignment": "left"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Sub-point two",
+              "styles": {}
+            }
+          ],
+          "children": [],
+          "id": "ac3dd233-a25f-4997-8e9b-c230c73d2ab4"
+        }
+      ],
+      "id": "12694b14-4cf7-441c-8398-24b6f01b7a5a"
+    },
+    {
+      "type": "checkListItem",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "checked": false
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Unchecked task",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "da661163-5632-4113-8f44-31bae9f70849"
+    },
+    {
+      "type": "checkListItem",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "checked": true
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Completed task",
+          "styles": {}
+        }
+      ],
+      "children": [
+        {
+          "type": "checkListItem",
+          "props": {
+            "textColor": "default",
+            "backgroundColor": "default",
+            "textAlignment": "left",
+            "checked": false
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Sub-task still open",
+              "styles": {}
+            }
+          ],
+          "children": [],
+          "id": "0261b2af-9666-41b3-b6ae-137fab0e6e34"
+        }
+      ],
+      "id": "ccf48a17-8778-4189-bc5e-da3aa7a98956"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Quote",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "d14f3272-bb57-4b82-bab3-7ca250633c8d"
+    },
+    {
+      "type": "quote",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "BlockNote quotes preserve their own block styling — great for callouts and pull quotes.",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "214f91fc-6cdb-41bc-9462-e82305266e61"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Code blocks",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "61b16942-d084-4236-a18c-9db87fd7c73e"
+    },
+    {
+      "type": "codeBlock",
+      "props": {
+        "language": "typescript"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "type InlineStyle = {\n  bold?: boolean;\n  italic?: boolean;\n  textColor?: string;\n  backgroundColor?: string;\n};",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "d56ac727-fb21-4fa2-a3bd-d3839154f2c5"
+    },
+    {
+      "type": "codeBlock",
+      "props": {
+        "language": "bash"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "NOAT_MCP_DIRECT_JSON=1 node dist/mcp-server.js",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "20e59d2d-17aa-41af-9cb4-bf61c644990c"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Table",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "7b2b4f34-c059-4652-aa13-1d7e32189a9d"
+    },
+    {
+      "type": "table",
+      "props": {
+        "textColor": "default"
+      },
+      "content": {
+        "type": "tableContent",
+        "rows": [
+          {
+            "cells": [
+              [
+                {
+                  "type": "text",
+                  "text": "Feature",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "Markdown MCP",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "JSON MCP",
+                  "styles": {}
+                }
+              ]
+            ]
+          },
+          {
+            "cells": [
+              [
+                {
+                  "type": "text",
+                  "text": "Text colors",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "lost",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "preserved",
+                  "styles": {}
+                }
+              ]
+            ]
+          },
+          {
+            "cells": [
+              [
+                {
+                  "type": "text",
+                  "text": "Background highlights",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "lost",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "preserved",
+                  "styles": {}
+                }
+              ]
+            ]
+          },
+          {
+            "cells": [
+              [
+                {
+                  "type": "text",
+                  "text": "fileLink chips",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "flattened to code",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "native",
+                  "styles": {}
+                }
+              ]
+            ]
+          },
+          {
+            "cells": [
+              [
+                {
+                  "type": "text",
+                  "text": "Nested children",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "partial",
+                  "styles": {}
+                }
+              ],
+              [
+                {
+                  "type": "text",
+                  "text": "full tree",
+                  "styles": {}
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "children": [],
+      "id": "1135c9c9-c2b2-4eb0-ac59-8aa688046066"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "NOAT file link",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "2080a723-7645-431b-9ab1-c48463efa6be"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Jump to the MCP server source: ",
+          "styles": {}
+        },
+        {
+          "type": "fileLink",
+          "props": {
+            "path": "src/mcp/server.ts"
+          }
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "styles": {}
+        },
+        {
+          "type": "text",
+          "text": "and the markdown adapter: ",
+          "styles": {}
+        },
+        {
+          "type": "fileLink",
+          "props": {
+            "path": "src/mcp/markdown.ts"
+          }
+        }
+      ],
+      "children": [],
+      "id": "fee13534-5cdb-4f1a-83ee-f0bb88d41f90"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": {
+          "textAlignment": "left"
+        },
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Heading levels",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "922126c6-ff55-42ad-8b6d-b86d78ca2696"
+    },
+    {
+      "type": "heading",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left",
+        "level": 3
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Level 3 heading",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "d75fb9df-81f1-4ac5-8d34-83b7d2bf3a93"
+    },
+    {
+      "type": "paragraph",
+      "props": {
+        "textColor": "default",
+        "backgroundColor": "default",
+        "textAlignment": "left"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "This note exercises every major block type the NOAT editor supports. Open it in the NOAT sidebar to see the colors and formatting render live.",
+          "styles": {}
+        }
+      ],
+      "children": [],
+      "id": "7b644350-c6d7-4c35-b78a-05a4152f4e32"
+    }
+  ]
+}

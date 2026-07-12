@@ -12,6 +12,10 @@ interface CursorMcpApi {
  * Register the bundled NOAT MCP server with Cursor so agents can access notes.
  * No-ops in plain VS Code (the `vscode.cursor` namespace only exists in Cursor);
  * there, users add the server to mcp.json manually (documented in the README).
+ *
+ * IDE-set preferences (e.g. the direct-JSON toggle) are NOT passed here — they
+ * are persisted to the store's config.json so the MCP server picks them up no
+ * matter which host launches it. See src/core/config.ts.
  */
 export function registerMcpServer(context: vscode.ExtensionContext, noatHome: string): void {
   const cursorApi = (vscode as unknown as { cursor?: { mcp?: CursorMcpApi } }).cursor?.mcp;
