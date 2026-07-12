@@ -103,7 +103,7 @@ Cursor registers the MCP server automatically. For other MCP clients, point at t
 
 The server works standalone — it reads `~/.noat` directly and doesn't need the editor running. Set `NOAT_HOME` to use a different store location.
 
-In Cursor, enable **NOAT: MCP Use Direct Json** in Settings to let agents read and write BlockNote JSON (preserving colors and rich formatting) instead of markdown. For manual `mcp.json` setups, set `NOAT_MCP_DIRECT_JSON=1` in the server's environment.
+Enable **NOAT: MCP Use Direct Json** in your editor's settings to let agents read and write BlockNote JSON (preserving colors and rich formatting) instead of markdown. The extension persists this to `config.json` in the store, so the MCP server honors it in any host — Cursor, VS Code, or another MCP client. For setups where the extension isn't running, set `NOAT_MCP_DIRECT_JSON=1` in the server's environment to override.
 
 ## Storage
 

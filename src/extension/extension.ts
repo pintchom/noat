@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { writeConfig } from '../core/config';
 import { getNoatHome } from '../core/paths';
 import { getNotesRoot } from '../core/paths';
 import { SearchEngine } from '../core/search/engine';
@@ -36,10 +37,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   registerMcpServer(context, noatHome);
 
+  // Mirror IDE settings into the store's config.json so the standalone MCP
+  // server honors them in any host (Cursor, VS Code, or manual mcp.json).
+  const syncConfig = (): void => {
+    const useDirectJson = vscode.workspace
+      .getConfiguration('noat')
+      .get<boolean>('mcp.useDirectJson', false);
+    try {
+      writeConfig(noatHome, { mcp: { useDirectJson } });
+    } catch (error) {
+      logError('failed to sync NOAT config', error);
+    }
+  };
+  syncConfig();
+
   context.subscriptions.push(
     vscode.window.createTreeView('noatNotes', { treeDataProvider: tree }),
     NoteEditorProvider.register(context),
-    gitSync
+    gitSync,
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('noat.mcp.useDirectJson')) syncConfig();
+    })
   );
 
   /** Directory a create action should target, based on where it was invoked. */

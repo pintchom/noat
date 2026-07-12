@@ -14,6 +14,15 @@ export function getNotesRoot(noatHome: string): string {
   return path.join(noatHome, 'notes');
 }
 
+/**
+ * Machine-local NOAT settings file. Lives at the store root so the standalone
+ * MCP server can read IDE-set preferences regardless of which client launched
+ * it (Cursor, VS Code, or a manual mcp.json in any other MCP host).
+ */
+export function getConfigPath(noatHome: string): string {
+  return path.join(noatHome, 'config.json');
+}
+
 export function getGlobalNotesDir(noatHome: string): string {
   return path.join(getNotesRoot(noatHome), 'global');
 }
