@@ -111,10 +111,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       showSearchPalette(noatHome, searchEngine)
     ),
     vscode.commands.registerCommand('noat.openKeyboardShortcuts', () =>
-      vscode.commands.executeCommand(
-        'workbench.action.openGlobalKeybindings',
-        '@ext:pintchom.noat'
-      )
+      vscode.commands.executeCommand('workbench.action.openGlobalKeybindings', '@ext:pintchom.noat')
     ),
     vscode.commands.registerCommand('noat.rebuildSearchIndex', () =>
       vscode.window.withProgress(
