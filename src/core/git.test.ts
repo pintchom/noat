@@ -4,12 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  commitAll,
-  ensureGitRepo,
-  getWorkspaceGitSnapshot,
-  parseGitStatusPaths,
-} from './git';
+import { commitAll, ensureGitRepo, getWorkspaceGitSnapshot, parseGitStatusPaths } from './git';
 
 const execFileAsync = promisify(execFile);
 
@@ -73,11 +68,7 @@ describe('getWorkspaceGitSnapshot', () => {
       'src/new.ts',
       'src/renamed.ts',
     ]);
-    expect(snapshot?.changedFiles).toEqual([
-      'src/modified.ts',
-      'src/new.ts',
-      'src/renamed.ts',
-    ]);
+    expect(snapshot?.changedFiles).toEqual(['src/modified.ts', 'src/new.ts', 'src/renamed.ts']);
   });
 
   it('returns undefined outside a git repository', async () => {

@@ -6,11 +6,7 @@ describe('rankWorkspaceFiles', () => {
     const files = ['README.md', 'src/a.ts', 'src/b.ts', 'src/c.ts', 'src/other.ts'];
     const changed = new Set(['src/a.ts', 'src/b.ts', 'src/c.ts']);
 
-    expect(rankWorkspaceFiles(files, changed, '', 2)).toEqual([
-      'src/a.ts',
-      'src/b.ts',
-      'src/c.ts',
-    ]);
+    expect(rankWorkspaceFiles(files, changed, '', 2)).toEqual(['src/a.ts', 'src/b.ts', 'src/c.ts']);
   });
 
   it('retains all matching changed files beyond the regular result cap', () => {

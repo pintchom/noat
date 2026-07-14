@@ -5,18 +5,20 @@ interface ScoredFile {
 }
 
 function fuzzyGapScore(value: string, query: string): number | undefined {
-  const positions = [...query].reduce<number[] | undefined>((matches, character) => {
-    if (!matches) return undefined;
-    const previous = matches.at(-1) ?? -1;
-    const position = value.indexOf(character, previous + 1);
-    return position === -1 ? undefined : [...matches, position];
-  }, []);
-  if (!positions || positions.length === 0) return undefined;
-
-  return positions.reduce((gaps, position, index) => {
-    const previous = positions[index - 1] ?? -1;
-    return gaps + position - previous - 1;
-  }, 0);
+  const match = [...query].reduce<{ position: number; gaps: number } | undefined>(
+    (state, character) => {
+      if (!state) return undefined;
+      const position = value.indexOf(character, state.position + 1);
+      return position === -1
+        ? undefined
+        : {
+            position,
+            gaps: state.gaps + position - state.position - 1,
+          };
+    },
+    { position: -1, gaps: 0 }
+  );
+  return match?.gaps;
 }
 
 function matchScore(file: string, query: string): number | undefined {

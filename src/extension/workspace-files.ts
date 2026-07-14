@@ -13,7 +13,11 @@ interface FolderFiles {
   changedFiles: string[];
 }
 
-function withFolderPrefix(folder: vscode.WorkspaceFolder, file: string, multiRoot: boolean): string {
+function withFolderPrefix(
+  folder: vscode.WorkspaceFolder,
+  file: string,
+  multiRoot: boolean
+): string {
   return multiRoot ? `${folder.name}/${file}` : file;
 }
 
