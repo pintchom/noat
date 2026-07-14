@@ -87,7 +87,9 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 | `Cmd+Alt+P` (`Ctrl+Alt+P`) | Search notes (alternate binding) |
 | `Cmd+P` while the NOAT sidebar is focused | Search notes |
 
-Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`.
+Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.
+
+Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`.
 
 ## MCP setup outside Cursor
 

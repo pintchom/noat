@@ -103,6 +103,11 @@
         "icon": "$(search)"
       },
       {
+        "command": "noat.openKeyboardShortcuts",
+        "title": "NOAT: Edit Keyboard Shortcuts",
+        "icon": "$(keyboard)"
+      },
+      {
         "command": "noat.openNote",
         "title": "NOAT: Open Note"
       },
@@ -156,6 +161,11 @@
           "command": "noat.refresh",
           "when": "view == noatNotes",
           "group": "navigation@3"
+        },
+        {
+          "command": "noat.openKeyboardShortcuts",
+          "when": "view == noatNotes",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
