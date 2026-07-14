@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { FOLDER_ICON, NOTE_ICON } from '../core/display-icons';
 import { type NoteScope, type StoreEntry, listEntries, scopeDir } from '../core/store';
 import type { WorkspaceRepo } from './workspace-scope';
 
@@ -40,16 +41,19 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoatNode> {
     const scopeSuffix = entry.scope.type === 'repo' ? 'repo' : 'global';
 
     if (entry.kind === 'folder') {
-      const item = new vscode.TreeItem(entry.name, vscode.TreeItemCollapsibleState.Collapsed);
+      const item = new vscode.TreeItem(
+        `${FOLDER_ICON} ${entry.name}`,
+        vscode.TreeItemCollapsibleState.Collapsed
+      );
       item.contextValue = `folder-${scopeSuffix}`;
-      item.iconPath = vscode.ThemeIcon.Folder;
       return item;
     }
 
-    const item = new vscode.TreeItem(entry.name, vscode.TreeItemCollapsibleState.None);
+    const item = new vscode.TreeItem(
+      `${NOTE_ICON} ${entry.name}`,
+      vscode.TreeItemCollapsibleState.None
+    );
     item.contextValue = `note-${scopeSuffix}`;
-    item.iconPath = new vscode.ThemeIcon('note');
-    item.resourceUri = vscode.Uri.file(entry.absPath);
     item.command = {
       command: 'noat.openNote',
       title: 'Open Note',
