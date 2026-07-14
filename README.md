@@ -15,7 +15,7 @@ Notes open as normal editor tabs with a Notion-style block editor: type `/` for 
 
 ### Link to code with `@`
 
-Type `@` in a note to fuzzy-search every file in your workspace and insert a link chip. Click a chip and the file opens in the column beside your note. Paths are stored repo-relative, so links keep working across machines.
+Type `@` in a note to fuzzy-search tracked and non-ignored files in your workspace and insert a link chip. Files changed in your working tree appear first. Click a chip and the file opens in the column beside your note. Paths are stored repo-relative, so links keep working across machines.
 
 ### Repo-scoped or global
 
