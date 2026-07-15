@@ -1,4 +1,4 @@
-import { listAllNotes, readNoteByPath, scopeOfNotePath } from '../note-listing';
+import { listAllNotes, readNoteByPath, scopeOfNotePath, statAllNotes } from '../note-listing';
 import { blocksToPlainText, blocksToSections } from '../note-text';
 import { embedQuery, embedTexts, isEmbedderReady } from './embeddings';
 import { type HybridResult, mergeHybrid } from './hybrid';
@@ -36,6 +36,9 @@ export class SearchEngine {
   private titles = new Map<string, { title: string; icon?: string; scope: string }>();
   private vectors: VectorIndex | undefined;
   private keywordReady: Promise<void> | undefined;
+  private vectorReady: Promise<void> | undefined;
+  // notePath -> "mtimeMs:size" as of the last sweep, for out-of-band change detection.
+  private fileStats: Map<string, string> | undefined;
   // Serializes all index mutations so saves/updates can't interleave.
   private indexQueue: Promise<void> = Promise.resolve();
 
@@ -81,11 +84,13 @@ export class SearchEngine {
   }
 
   /**
-   * Bring the vector index up to date with the store. Embeds only chunks whose
-   * content changed. Safe to call repeatedly; runs serialized.
+   * Build the vector index once; later staleness is handled incrementally via
+   * updateNote. A failed build (e.g. offline model download) is not memoized,
+   * so the next call retries.
    */
   ensureVectorIndex(onProgress?: (done: number, total: number) => void): Promise<void> {
-    return this.enqueue(async () => {
+    if (this.vectorReady) return this.vectorReady;
+    const ready = this.enqueue(async () => {
       const index = this.vectors ?? (await loadVectorIndex(this.noatHome));
       const listings = await listAllNotes(this.noatHome);
       const livePaths = new Set(listings.map((listing) => listing.notePath));
@@ -125,9 +130,14 @@ export class SearchEngine {
       this.vectors = index;
       if (totalToEmbed > 0) await saveVectorIndex(this.noatHome, index);
     });
+    this.vectorReady = ready;
+    ready.catch(() => {
+      if (this.vectorReady === ready) this.vectorReady = undefined;
+    });
+    return ready;
   }
 
-  /** Incrementally reindex a single note (called on save). */
+  /** Incrementally reindex a single note (on save, MCP writes, staleness sweeps). */
   updateNote(notePath: string): Promise<void> {
     return this.enqueue(async () => {
       const note = await readNoteByPath(this.noatHome, notePath).catch(() => undefined);
@@ -225,8 +235,28 @@ export class SearchEngine {
     return mergeHybrid(this.keyword.search(query, RESULT_LIMIT), semantic, RESULT_LIMIT);
   }
 
+  /**
+   * Reconcile the indexes with files changed outside this process (editor
+   * saves, git pulls). Stat-only; content is re-read only for changed notes.
+   */
+  private async refreshFromDisk(): Promise<void> {
+    const stats = await statAllNotes(this.noatHome);
+    const current = new Map(stats.map((stat) => [stat.notePath, `${stat.mtimeMs}:${stat.size}`]));
+    const previous = this.fileStats;
+    this.fileStats = current;
+    // First sweep only seeds the map — the index builders read the same disk state.
+    if (!previous) return;
+    for (const [notePath, signature] of current) {
+      if (previous.get(notePath) !== signature) await this.updateNote(notePath);
+    }
+    for (const notePath of previous.keys()) {
+      if (!current.has(notePath)) await this.updateNote(notePath);
+    }
+  }
+
   /** Hybrid search returning display-ready results. */
   async search(query: string, mode: SearchMode = 'hybrid'): Promise<SearchResult[]> {
+    await this.refreshFromDisk();
     if (mode === 'keyword') return this.searchKeyword(query);
     if (mode === 'semantic') return this.searchSemantic(query);
     const merged = await this.searchHybrid(query);
@@ -246,6 +276,7 @@ export class SearchEngine {
   /** Drop everything and rebuild from disk (exposed as a command). */
   async rebuild(onProgress?: (done: number, total: number) => void): Promise<void> {
     this.keywordReady = undefined;
+    this.vectorReady = undefined;
     this.vectors = { model: (await loadVectorIndex(this.noatHome)).model, notes: {} };
     await saveVectorIndex(this.noatHome, this.vectors);
     await this.ensureKeywordIndex();
