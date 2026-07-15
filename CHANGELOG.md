@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6 — 2026-07-15
+
+- Drag notes and folders onto folders (or scopes) in the NOAT sidebar to reorganize them
+- Toggle in the sidebar title bar to show all repository note scopes, not just the current workspace
+
 ## 0.1.5 — 2026-07-08
 
 - Transparent icon background

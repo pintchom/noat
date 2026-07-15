@@ -2,7 +2,7 @@
   "name": "noat",
   "displayName": "NOAT",
   "description": "Notion-style notes inside your IDE. Local-first, git-versioned, MCP-accessible.",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "pintchom",
   "license": "MIT",
   "repository": {
@@ -78,6 +78,16 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "noat.showAllRepos",
+        "title": "NOAT: Show All Repositories",
+        "icon": "$(layers)"
+      },
+      {
+        "command": "noat.showFocusedRepos",
+        "title": "NOAT: Show Current Repository Only",
+        "icon": "$(filter)"
+      },
+      {
         "command": "noat.rename",
         "title": "Rename"
       },
@@ -147,6 +157,16 @@
     },
     "menus": {
       "view/title": [
+        {
+          "command": "noat.showAllRepos",
+          "when": "view == noatNotes && !noat.showAllRepos",
+          "group": "navigation@0"
+        },
+        {
+          "command": "noat.showFocusedRepos",
+          "when": "view == noatNotes && noat.showAllRepos",
+          "group": "navigation@0"
+        },
         {
           "command": "noat.newNote",
           "when": "view == noatNotes",

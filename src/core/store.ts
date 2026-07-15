@@ -10,6 +10,7 @@ import {
   titleToFileName,
 } from './note';
 import { getGlobalNotesDir, getRepoNotesDir, getReposNotesDir } from './paths';
+import { repoKeyToLabel } from './repo-key';
 
 export type NoteScope = { type: 'global' } | { type: 'repo'; repoKey: string };
 
@@ -139,15 +140,52 @@ export async function moveToScope(
   noatHome: string,
   targetScope: NoteScope
 ): Promise<string> {
-  const targetDir = scopeDir(noatHome, targetScope);
-  await fs.mkdir(targetDir, { recursive: true });
-  const baseName = path.basename(entryAbsPath);
+  return moveEntry(entryAbsPath, scopeDir(noatHome, targetScope));
+}
+
+/**
+ * Move a note or folder into `targetDirAbs`. Collision-safe (appends " 2", …).
+ * Refuses to move a folder into itself or a descendant.
+ */
+export async function moveEntry(entryAbsPath: string, targetDirAbs: string): Promise<string> {
+  const resolvedEntry = path.resolve(entryAbsPath);
+  const resolvedTarget = path.resolve(targetDirAbs);
+
+  if (path.dirname(resolvedEntry) === resolvedTarget) {
+    return resolvedEntry;
+  }
+
+  const relative = path.relative(resolvedEntry, resolvedTarget);
+  if (relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))) {
+    throw new Error('Cannot move a folder into itself or one of its subfolders');
+  }
+
+  await fs.mkdir(resolvedTarget, { recursive: true });
+  const baseName = path.basename(resolvedEntry);
   const isNote = isNoteFile(baseName);
   const newPath = await availablePath(
-    targetDir,
+    resolvedTarget,
     isNote ? noteNameFromFile(baseName) : baseName,
     isNote ? NOTE_EXTENSION : ''
   );
-  await fs.rename(entryAbsPath, newPath);
+  await fs.rename(resolvedEntry, newPath);
   return newPath;
+}
+
+/** List on-disk repo scopes under notes/repos (label sorted). */
+export async function listRepoScopes(
+  noatHome: string
+): Promise<Array<{ repoKey: string; label: string }>> {
+  const dirents = await (async () => {
+    try {
+      return await fs.readdir(getReposNotesDir(noatHome), { withFileTypes: true });
+    } catch {
+      return [];
+    }
+  })();
+
+  return dirents
+    .filter((dirent) => dirent.isDirectory() && !dirent.name.startsWith('.'))
+    .map((dirent) => ({ repoKey: dirent.name, label: repoKeyToLabel(dirent.name) }))
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 }
