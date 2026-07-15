@@ -19,7 +19,7 @@ Type `@` in a note to fuzzy-search tracked and non-ignored files in your workspa
 
 ### Repo-scoped or global
 
-Notes are either **global** (visible everywhere) or **scoped to a repository** (keyed by its `origin` remote, so clones on other machines see the same notes). Organize freely with folders; move notes between scopes from the sidebar.
+Notes are either **global** (visible everywhere) or **scoped to a repository** (keyed by its `origin` remote, so clones on other machines see the same notes). Organize freely with folders — drag notes into folders in the sidebar, or move notes between scopes from the context menu. Use the layers icon in the sidebar to show every repository's notes at once, not just the current workspace.
 
 ### Search that works like a personal Google
 
@@ -89,7 +89,7 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 
 Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.
 
-Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`.
+Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`.
 
 ## MCP setup outside Cursor
 

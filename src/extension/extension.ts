@@ -19,9 +19,11 @@ import { GitSync } from './git-sync';
 import { logError } from './log';
 import { registerMcpServer } from './mcp-registration';
 import { NoteEditorProvider } from './note-editor';
-import { type NoatNode, NotesTreeProvider } from './notes-tree';
+import { type NoatNode, NotesDragAndDropController, NotesTreeProvider } from './notes-tree';
 import { showSearchPalette } from './search-palette';
 import { detectWorkspaceRepo } from './workspace-scope';
+
+const SHOW_ALL_REPOS_KEY = 'noat.showAllRepos';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const noatHome = getNoatHome();
@@ -29,6 +31,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const workspaceRepo = await detectWorkspaceRepo();
   const tree = new NotesTreeProvider(noatHome, workspaceRepo);
+  tree.setShowAllRepos(context.globalState.get<boolean>(SHOW_ALL_REPOS_KEY, false));
+  await vscode.commands.executeCommand('setContext', SHOW_ALL_REPOS_KEY, tree.getShowAllRepos());
 
   // Note edits save to disk immediately; the store is only committed when the
   // user commits in a workspace repo (see GitSync).
@@ -52,7 +56,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   syncConfig();
 
   context.subscriptions.push(
-    vscode.window.createTreeView('noatNotes', { treeDataProvider: tree }),
+    vscode.window.createTreeView('noatNotes', {
+      treeDataProvider: tree,
+      dragAndDropController: new NotesDragAndDropController(tree),
+    }),
     NoteEditorProvider.register(context),
     gitSync,
     vscode.workspace.onDidChangeConfiguration((event) => {
@@ -155,6 +162,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   register('noat.refresh', async () => {
     tree.setWorkspaceRepo(await detectWorkspaceRepo());
+  });
+
+  const setShowAllRepos = async (showAll: boolean): Promise<void> => {
+    tree.setShowAllRepos(showAll);
+    await context.globalState.update(SHOW_ALL_REPOS_KEY, showAll);
+    await vscode.commands.executeCommand('setContext', SHOW_ALL_REPOS_KEY, showAll);
+  };
+
+  register('noat.showAllRepos', async () => {
+    await setShowAllRepos(true);
+  });
+
+  register('noat.showFocusedRepos', async () => {
+    await setShowAllRepos(false);
   });
 
   register('noat.rename', async (node) => {

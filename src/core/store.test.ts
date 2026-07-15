@@ -11,6 +11,8 @@ import {
   deleteEntry,
   initStore,
   listEntries,
+  listRepoScopes,
+  moveEntry,
   moveToScope,
   readNote,
   renameNote,
@@ -128,5 +130,64 @@ describe('moveToScope', () => {
     const notePath = await createNote(globalDir, 'Same');
     const newPath = await moveToScope(notePath, noatHome, repoScope);
     expect(path.basename(newPath)).toBe('Same 2.noat.json');
+  });
+});
+
+describe('moveEntry', () => {
+  it('moves a note into a folder', async () => {
+    const notePath = await createNote(globalDir, 'Drag me');
+    const folderPath = await createFolder(globalDir, 'Inbox');
+    const newPath = await moveEntry(notePath, folderPath);
+    expect(newPath).toBe(path.join(folderPath, 'Drag me.noat.json'));
+    await expect(fs.access(notePath)).rejects.toThrow();
+    expect((await readNote(newPath)).title).toBe('Drag me');
+  });
+
+  it('moves a folder into another folder', async () => {
+    const child = await createFolder(globalDir, 'Child');
+    const parent = await createFolder(globalDir, 'Parent');
+    const newPath = await moveEntry(child, parent);
+    expect(newPath).toBe(path.join(parent, 'Child'));
+  });
+
+  it('is a no-op when the entry is already in the target dir', async () => {
+    const notePath = await createNote(globalDir, 'Stay');
+    const result = await moveEntry(notePath, globalDir);
+    expect(result).toBe(notePath);
+  });
+
+  it('refuses to move a folder into itself', async () => {
+    const folderPath = await createFolder(globalDir, 'Loop');
+    await expect(moveEntry(folderPath, folderPath)).rejects.toThrow(/itself/);
+  });
+
+  it('refuses to move a folder into a descendant', async () => {
+    const parent = await createFolder(globalDir, 'Parent');
+    const child = await createFolder(parent, 'Child');
+    await expect(moveEntry(parent, child)).rejects.toThrow(/itself/);
+  });
+
+  it('deduplicates colliding names in the target folder', async () => {
+    const folderPath = await createFolder(globalDir, 'Dest');
+    await createNote(folderPath, 'Clash');
+    const notePath = await createNote(globalDir, 'Clash');
+    const newPath = await moveEntry(notePath, folderPath);
+    expect(path.basename(newPath)).toBe('Clash 2.noat.json');
+  });
+});
+
+describe('listRepoScopes', () => {
+  it('lists on-disk repo scopes with labels', async () => {
+    await createNote(
+      scopeDir(noatHome, { type: 'repo', repoKey: 'github.com--acme--widgets' }),
+      'A'
+    );
+    await createNote(scopeDir(noatHome, { type: 'repo', repoKey: 'github.com--zoo--app' }), 'B');
+
+    const scopes = await listRepoScopes(noatHome);
+    expect(scopes).toEqual([
+      { repoKey: 'github.com--acme--widgets', label: 'acme/widgets' },
+      { repoKey: 'github.com--zoo--app', label: 'zoo/app' },
+    ]);
   });
 });
