@@ -7,6 +7,7 @@ export interface NoteListing {
   /** Store-relative path, e.g. "global/Ideas.noat.json" — the canonical note id. */
   notePath: string;
   title: string;
+  icon?: string;
   scope: string;
   updatedAt: string;
 }
@@ -55,7 +56,13 @@ export async function listAllNotes(noatHome: string, scopeFilter?: string): Prom
         if (scopeFilter && scope !== scopeFilter) continue;
         try {
           const note = parseNote(await fs.readFile(absPath, 'utf8'));
-          results.push({ notePath: relPath, title: note.title, scope, updatedAt: note.updatedAt });
+          results.push({
+            notePath: relPath,
+            title: note.title,
+            ...(note.icon && { icon: note.icon }),
+            scope,
+            updatedAt: note.updatedAt,
+          });
         } catch {
           // Unreadable note files are skipped rather than failing the listing.
         }

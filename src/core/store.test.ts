@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { isGitRepo } from './git';
+import { listAllNotes } from './note-listing';
 import { getGlobalNotesDir } from './paths';
 import {
   createFolder,
@@ -49,6 +50,7 @@ describe('notes CRUD', () => {
     const note = await readNote(notePath);
     expect(note.title).toBe('My First Note');
     expect(note.version).toBe(1);
+    expect(note.icon).toBeUndefined();
     expect(note.blocks).toEqual([]);
   });
 
@@ -76,9 +78,11 @@ describe('notes CRUD', () => {
 
   it('renames a note file and its embedded title', async () => {
     const notePath = await createNote(globalDir, 'Old');
+    const note = await readNote(notePath);
+    await writeNote(notePath, { ...note, icon: '🔥' });
     const newPath = await renameNote(notePath, 'New');
     expect(path.basename(newPath)).toBe('New.noat.json');
-    expect((await readNote(newPath)).title).toBe('New');
+    expect(await readNote(newPath)).toMatchObject({ title: 'New', icon: '🔥' });
     await expect(fs.access(notePath)).rejects.toThrow();
   });
 
@@ -92,7 +96,9 @@ describe('notes CRUD', () => {
 describe('listEntries', () => {
   it('lists folders before notes, alphabetically, skipping dotfiles', async () => {
     await createNote(globalDir, 'zeta');
-    await createNote(globalDir, 'alpha');
+    const alphaPath = await createNote(globalDir, 'alpha');
+    const alpha = await readNote(alphaPath);
+    await writeNote(alphaPath, { ...alpha, icon: '💡' });
     await createFolder(globalDir, 'stuff');
     await fs.writeFile(path.join(globalDir, '.hidden'), '');
     await fs.writeFile(path.join(globalDir, 'random.txt'), 'not a note');
@@ -103,6 +109,9 @@ describe('listEntries', () => {
       'note:alpha',
       'note:zeta',
     ]);
+    expect(entries.find((entry) => entry.name === 'alpha')?.icon).toBe('💡');
+    expect(entries.find((entry) => entry.name === 'zeta')?.icon).toBeUndefined();
+    expect((await listAllNotes(noatHome)).find((note) => note.title === 'alpha')?.icon).toBe('💡');
   });
 });
 

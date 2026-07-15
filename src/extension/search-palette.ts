@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { resolveNoteIcon } from '../core/display-icons';
 import { listAllNotes } from '../core/note-listing';
 import { getNotesRoot } from '../core/paths';
 import { repoKeyToLabel } from '../core/repo-key';
@@ -19,7 +20,7 @@ function scopeLabel(scope: string): string {
 function toItem(result: SearchResult): NoteQuickPickItem {
   const viaSemantic = result.sources.includes('semantic');
   return {
-    label: `$(note) ${result.title}`,
+    label: `${resolveNoteIcon(result.icon)} ${result.title}`,
     description: `${scopeLabel(result.scope)}${viaSemantic ? ' $(sparkle)' : ''}`,
     detail: result.snippet?.slice(0, 120),
     notePath: result.notePath,
@@ -48,7 +49,7 @@ export async function showSearchPalette(noatHome: string, engine: SearchEngine):
     const recent = await listAllNotes(noatHome);
     if (myGeneration !== generation) return;
     quickPick.items = recent.slice(0, 15).map((listing) => ({
-      label: `$(note) ${listing.title}`,
+      label: `${resolveNoteIcon(listing.icon)} ${listing.title}`,
       description: scopeLabel(listing.scope),
       notePath: listing.notePath,
       alwaysShow: true,

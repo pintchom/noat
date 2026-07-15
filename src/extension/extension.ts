@@ -134,6 +134,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const notesRoot = getNotesRoot(noatHome);
       const filePath = document.uri.fsPath;
       if (!filePath.startsWith(notesRoot + path.sep) || !filePath.endsWith('.noat.json')) return;
+      tree.refresh();
       void searchEngine.updateNote(path.relative(notesRoot, filePath));
     })
   );
