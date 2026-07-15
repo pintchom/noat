@@ -18,6 +18,7 @@ export type SearchMode = 'keyword' | 'semantic' | 'hybrid';
 export interface SearchResult {
   notePath: string;
   title: string;
+  icon?: string;
   scope: string;
   snippet?: string;
   sources: Array<'keyword' | 'semantic'>;
@@ -32,7 +33,7 @@ const RESULT_LIMIT = 15;
  */
 export class SearchEngine {
   private keyword = new KeywordIndex();
-  private titles = new Map<string, { title: string; scope: string }>();
+  private titles = new Map<string, { title: string; icon?: string; scope: string }>();
   private vectors: VectorIndex | undefined;
   private keywordReady: Promise<void> | undefined;
   // Serializes all index mutations so saves/updates can't interleave.
@@ -60,7 +61,11 @@ export class SearchEngine {
             const note = await readNoteByPath(this.noatHome, listing.notePath).catch(
               () => undefined
             );
-            this.titles.set(listing.notePath, { title: listing.title, scope: listing.scope });
+            this.titles.set(listing.notePath, {
+              title: listing.title,
+              ...(listing.icon && { icon: listing.icon }),
+              scope: listing.scope,
+            });
             return {
               id: listing.notePath,
               title: listing.title,
@@ -137,7 +142,11 @@ export class SearchEngine {
       }
 
       const scope = scopeOfNotePath(notePath);
-      this.titles.set(notePath, { title: note.title, scope });
+      this.titles.set(notePath, {
+        title: note.title,
+        ...(note.icon && { icon: note.icon }),
+        scope,
+      });
       this.keyword.upsert({
         id: notePath,
         title: note.title,
@@ -176,6 +185,7 @@ export class SearchEngine {
     return {
       notePath,
       title: meta?.title ?? notePath,
+      ...(meta?.icon && { icon: meta.icon }),
       scope: meta?.scope ?? scopeOfNotePath(notePath),
       snippet,
       sources,

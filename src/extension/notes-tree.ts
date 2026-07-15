@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FOLDER_ICON, NOTE_ICON } from '../core/display-icons';
+import { FOLDER_ICON, resolveNoteIcon } from '../core/display-icons';
 import { type NoteScope, type StoreEntry, listEntries, scopeDir } from '../core/store';
 import type { WorkspaceRepo } from './workspace-scope';
 
@@ -50,7 +50,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoatNode> {
     }
 
     const item = new vscode.TreeItem(
-      `${NOTE_ICON} ${entry.name}`,
+      `${resolveNoteIcon(entry.icon)} ${entry.name}`,
       vscode.TreeItemCollapsibleState.None
     );
     item.contextValue = `note-${scopeSuffix}`;
