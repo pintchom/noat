@@ -15,6 +15,7 @@ import {
   renameNote,
   scopeDir,
 } from '../core/store';
+import { exportNoteAsPdf } from './export-pdf';
 import { GitSync } from './git-sync';
 import { logError } from './log';
 import { registerMcpServer } from './mcp-registration';
@@ -224,6 +225,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     await moveTo(node, repo.scope);
   });
+
+  register('noat.exportPdf', (node) => exportNoteAsPdf(noatHome, node));
 
   register('noat.openNotesRepo', async () => {
     const terminal = vscode.window.createTerminal({ name: 'NOAT store', cwd: noatHome });

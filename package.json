@@ -124,6 +124,11 @@
       {
         "command": "noat.rebuildSearchIndex",
         "title": "NOAT: Rebuild Search Index"
+      },
+      {
+        "command": "noat.exportPdf",
+        "title": "NOAT: Export Note as PDF",
+        "icon": "$(file-pdf)"
       }
     ],
     "keybindings": [
@@ -218,6 +223,18 @@
           "command": "noat.moveToRepo",
           "when": "view == noatNotes && viewItem == note-global",
           "group": "3_move@1"
+        },
+        {
+          "command": "noat.exportPdf",
+          "when": "view == noatNotes && viewItem =~ /note/",
+          "group": "4_share@1"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "noat.exportPdf",
+          "when": "activeCustomEditorId == noat.noteEditor",
+          "group": "navigation@1"
         }
       ],
       "commandPalette": [
@@ -259,6 +276,7 @@
     "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "minisearch": "^7.2.0",
+    "pdfkit": "^0.19.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {
@@ -269,6 +287,7 @@
     "@blocknote/react": "^0.48.1",
     "@blocknote/server-util": "^0.48.1",
     "@types/node": "^20.14.0",
+    "@types/pdfkit": "^0.17.6",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@types/vscode": "^1.90.0",

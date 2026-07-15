@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `NOAT: Export Note as PDF` — save any note as a shareable PDF from the command palette, the sidebar context menu, or the PDF button on an open note tab. Renders headings, lists, checklists, tables, code blocks, quotes, links, and file chips entirely locally.
+
 ## 0.1.7 — 2026-07-15
 
 - Customizable emoji icons for notes and files
