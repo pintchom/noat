@@ -73,9 +73,9 @@ export function NoteIconPicker({
         {resolveNoteIcon(icon)}
       </button>
       {isOpen && (
-        <div
+        <dialog
+          open
           className="noat-icon-popover"
-          role="dialog"
           aria-label="Choose note icon"
           onKeyDown={(event) => {
             if (event.key !== 'Escape') return;
@@ -128,7 +128,7 @@ export function NoteIconPicker({
           <button type="button" className="noat-icon-reset" onClick={() => chooseIcon(undefined)}>
             Reset to {NOTE_ICON}
           </button>
-        </div>
+        </dialog>
       )}
     </div>
   );

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  NOTE_ICON,
-  normalizeNoteIcon,
-  noteIconForStorage,
-  resolveNoteIcon,
-} from './display-icons';
+import { NOTE_ICON, normalizeNoteIcon, noteIconForStorage, resolveNoteIcon } from './display-icons';
 
 describe('note icons', () => {
   it('accepts a single emoji grapheme', () => {

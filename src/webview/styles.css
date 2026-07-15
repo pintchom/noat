@@ -84,10 +84,13 @@ body {
   z-index: 20;
   width: 232px;
   box-sizing: border-box;
+  margin: 0;
   padding: 10px;
   border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
   border-radius: 8px;
   background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-editor-foreground);
+  font: inherit;
   box-shadow: 0 6px 18px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
 }
 
