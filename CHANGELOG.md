@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.7 — 2026-07-15
+
+- Customizable emoji icons for notes and files
+- Drag notes into folders; sidebar shows all repository scopes
+- MCP write tools now refresh search indexes immediately, so new and edited notes are searchable right away
+- `get_note_outline` returns every heading with section sizes; `read_note` accepts an optional `section` for scoped reads
+- File paths written by agents in markdown are promoted to clickable file-link chips (with optional `:line`)
+- Clicking a file chip focuses an already-open editor instead of always splitting beside the note
+
 ## 0.1.6 — 2026-07-15
 
 - Drag notes and folders onto folders (or scopes) in the NOAT sidebar to reorganize them

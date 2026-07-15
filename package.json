@@ -2,7 +2,7 @@
   "name": "noat",
   "displayName": "NOAT",
   "description": "Notion-style notes inside your IDE. Local-first, git-versioned, MCP-accessible.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "pintchom",
   "license": "MIT",
   "repository": {
