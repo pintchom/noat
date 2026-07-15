@@ -36,7 +36,9 @@ code fences, tables, quotes, bold/italic/links.
 
 One custom inline element exists: "fileLink" (a clickable chip pointing to a
 workspace-relative file path). In markdown renderings it appears as inline
-code containing the path.
+code containing the path. In markdown writes, inline code holding a relative
+path with an extension (\`src/core/store.ts\`, optionally with a :line
+anchor) becomes a chip automatically — reference workspace files that way.
 
 ## Conventions
 
