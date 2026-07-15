@@ -15,6 +15,7 @@ export const noteFileSchema = z.object({
   version: z.literal(1),
   id: z.string(),
   title: z.string(),
+  icon: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   blocks: z.array(blockSchema),
