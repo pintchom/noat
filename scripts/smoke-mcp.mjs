@@ -83,7 +83,10 @@ try {
               content: [
                 { type: 'text', text: 'Some ', styles: {} },
                 { type: 'text', text: 'bold', styles: { bold: true } },
-                { type: 'text', text: ' text.', styles: {} },
+                { type: 'text', text: ' text, see ', styles: {} },
+                { type: 'fileLink', props: { path: 'src/core/store.ts' } },
+                { type: 'text', text: ':42', styles: { code: true } },
+                { type: 'text', text: '.', styles: {} },
               ],
               children: [],
             },
@@ -92,7 +95,8 @@ try {
       : {
           scope: 'global',
           title: 'Smoke Test',
-          markdown: '# Hello\n\nSome **bold** text.\n\n- [ ] a task\n\n```ts\nconst x = 1;\n```',
+          markdown:
+            '# Hello\n\nSome **bold** text, see `src/core/store.ts:42`.\n\n- [ ] a task\n\n```ts\nconst x = 1;\n```',
         },
   });
   const notePath = toolText(created).created;
@@ -143,6 +147,16 @@ try {
       note.blocks.every((b) => typeof b.id === 'string')
     );
   }
+
+  const inline = note.blocks.flatMap((b) => (Array.isArray(b.content) ? b.content : []));
+  const chip = inline.find((item) => item.type === 'fileLink');
+  if (chip?.props?.path !== 'src/core/store.ts') {
+    throw new Error(`expected a fileLink chip for src/core/store.ts, got ${JSON.stringify(chip)}`);
+  }
+  if (!directJson && !note.markdown.includes('`src/core/store.ts:42`')) {
+    throw new Error('expected markdown rendering to show the chip as `src/core/store.ts:42`');
+  }
+  console.log('fileLink chip present:', chip.props.path);
 
   const search = await request('tools/call', {
     name: 'search_notes',
