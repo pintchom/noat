@@ -110,6 +110,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('noat.searchNotes', () =>
       showSearchPalette(noatHome, searchEngine)
     ),
+    vscode.commands.registerCommand('noat.openKeyboardShortcuts', () =>
+      vscode.commands.executeCommand('workbench.action.openGlobalKeybindings', '@ext:pintchom.noat')
+    ),
     vscode.commands.registerCommand('noat.rebuildSearchIndex', () =>
       vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'NOAT: rebuilding search index' },
