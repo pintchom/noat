@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../core/editor-messages';
-import { WorkspaceFileSearch, resolveWorkspacePath } from './workspace-files';
+import { WorkspaceFileSearch, pickFileViewColumn, resolveWorkspacePath } from './workspace-files';
 
 const AUTO_SAVE_MS = 400;
 
@@ -13,7 +13,7 @@ async function openWorkspaceFile(relativePath: string): Promise<void> {
   }
   try {
     await vscode.window.showTextDocument(uri, {
-      viewColumn: vscode.ViewColumn.Beside,
+      viewColumn: pickFileViewColumn(uri),
       preserveFocus: false,
     });
   } catch {
