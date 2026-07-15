@@ -1,29 +1,72 @@
 import * as vscode from 'vscode';
+import { getWorkspaceGitSnapshot } from '../core/git';
+import { rankWorkspaceFiles } from '../core/workspace-file-search';
 
 const MAX_FILES = 50000;
 const CACHE_TTL_MS = 15000;
-const MAX_RESULTS = 12;
+const MAX_RESULTS = 100;
+const FALLBACK_EXCLUDE =
+  '{**/node_modules/**,**/.git/**,**/dist/**,**/build/**,**/out/**,**/.next/**,**/target/**}';
+
+interface FolderFiles {
+  files: string[];
+  changedFiles: string[];
+}
+
+function withFolderPrefix(
+  folder: vscode.WorkspaceFolder,
+  file: string,
+  multiRoot: boolean
+): string {
+  return multiRoot ? `${folder.name}/${file}` : file;
+}
 
 /**
- * Searches workspace files for the @-mention menu. Keeps a cached full file
- * list (all workspace roots) and filters it per query, so the menu sees the
- * entire workspace instead of a truncated snapshot.
+ * Searches workspace files for the @-mention menu. Git workspaces are listed
+ * through git so ignore rules are honored and large repositories are not
+ * truncated by the legacy VS Code file-search API.
  */
 export class WorkspaceFileSearch {
   private cache: string[] = [];
+  private changedFiles = new Set<string>();
   private cachedAt = 0;
   private refreshing: Promise<void> | undefined;
 
-  private async refresh(): Promise<void> {
-    const multiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
+  private async getFolderFiles(
+    folder: vscode.WorkspaceFolder,
+    multiRoot: boolean
+  ): Promise<FolderFiles> {
+    const gitSnapshot = await getWorkspaceGitSnapshot(folder.uri.fsPath);
+    if (gitSnapshot) {
+      return {
+        files: gitSnapshot.files.map((file) => withFolderPrefix(folder, file, multiRoot)),
+        changedFiles: gitSnapshot.changedFiles.map((file) =>
+          withFolderPrefix(folder, file, multiRoot)
+        ),
+      };
+    }
+
     const uris = await vscode.workspace.findFiles(
-      '**/*',
-      '{**/node_modules/**,**/.git/**,**/dist/**,**/build/**,**/out/**,**/.next/**,**/target/**}',
+      new vscode.RelativePattern(folder, '**/*'),
+      FALLBACK_EXCLUDE,
       MAX_FILES
     );
-    this.cache = uris
-      .map((uri) => vscode.workspace.asRelativePath(uri, multiRoot))
-      .sort((a, b) => a.localeCompare(b));
+    return {
+      files: uris.map((uri) => vscode.workspace.asRelativePath(uri, multiRoot)),
+      changedFiles: [],
+    };
+  }
+
+  private async refresh(): Promise<void> {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const multiRoot = folders.length > 1;
+    const folderFiles = await Promise.all(
+      folders.map((folder) => this.getFolderFiles(folder, multiRoot))
+    );
+    this.cache = [...new Set(folderFiles.flatMap(({ files }) => files))].sort((a, b) =>
+      a.localeCompare(b)
+    );
+    this.changedFiles = new Set(folderFiles.flatMap(({ changedFiles }) => changedFiles));
     this.cachedAt = Date.now();
   }
 
@@ -33,29 +76,12 @@ export class WorkspaceFileSearch {
         this.refreshing = undefined;
       });
     }
-    // First call blocks on the refresh; later calls reuse the cache while a
-    // background refresh may be in flight.
-    return this.cache.length === 0 && this.refreshing ? this.refreshing : Promise.resolve();
+    return this.refreshing ?? Promise.resolve();
   }
 
   async search(query: string): Promise<string[]> {
     await this.ensureFresh();
-    const q = query.toLowerCase();
-    if (q.length === 0) return this.cache.slice(0, MAX_RESULTS);
-
-    const scored = this.cache.flatMap((file) => {
-      const lower = file.toLowerCase();
-      const name = lower.split('/').pop() ?? lower;
-      if (name.startsWith(q)) return [{ file, score: 0 }];
-      if (name.includes(q)) return [{ file, score: 1 }];
-      if (lower.includes(q)) return [{ file, score: 2 }];
-      return [];
-    });
-
-    return scored
-      .sort((a, b) => a.score - b.score || a.file.length - b.file.length)
-      .slice(0, MAX_RESULTS)
-      .map((entry) => entry.file);
+    return rankWorkspaceFiles(this.cache, this.changedFiles, query, MAX_RESULTS);
   }
 }
 
