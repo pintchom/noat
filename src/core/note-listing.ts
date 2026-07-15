@@ -32,6 +32,43 @@ export async function readNoteByPath(noatHome: string, notePath: string): Promis
   return parseNote(await fs.readFile(resolveNotePath(noatHome, notePath), 'utf8'));
 }
 
+export interface NoteStat {
+  notePath: string;
+  mtimeMs: number;
+  size: number;
+}
+
+/** Stat every note file without reading contents (for cheap staleness checks). */
+export async function statAllNotes(noatHome: string): Promise<NoteStat[]> {
+  const notesRoot = getNotesRoot(noatHome);
+  const results: NoteStat[] = [];
+
+  async function walk(dir: string): Promise<void> {
+    const dirents = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    for (const dirent of dirents) {
+      if (dirent.name.startsWith('.')) continue;
+      const absPath = path.join(dir, dirent.name);
+      if (dirent.isDirectory()) {
+        await walk(absPath);
+      } else if (dirent.isFile() && dirent.name.endsWith(NOTE_EXTENSION)) {
+        try {
+          const stat = await fs.stat(absPath);
+          results.push({
+            notePath: path.relative(notesRoot, absPath),
+            mtimeMs: stat.mtimeMs,
+            size: stat.size,
+          });
+        } catch {
+          // Files deleted mid-walk are simply not listed.
+        }
+      }
+    }
+  }
+
+  await walk(notesRoot);
+  return results;
+}
+
 export async function listAllNotes(noatHome: string, scopeFilter?: string): Promise<NoteListing[]> {
   const notesRoot = getNotesRoot(noatHome);
   const results: NoteListing[] = [];

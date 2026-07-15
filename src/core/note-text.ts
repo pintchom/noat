@@ -67,6 +67,46 @@ export interface NoteSection {
   text: string;
 }
 
+export type SectionSlice =
+  | { kind: 'match'; heading: string; blocks: NoteFile['blocks'] }
+  | { kind: 'ambiguous'; candidates: string[] }
+  | { kind: 'not-found'; headings: string[] };
+
+/**
+ * Slice out the blocks of one section: from the heading matching `section`
+ * (case-insensitive exact match, else unique prefix — so "2.1" finds
+ * "2.1 Deploy steps") through everything before the next heading of the
+ * same or higher level, sub-sections included.
+ */
+export function sliceSection(blocks: NoteFile['blocks'], section: string): SectionSlice {
+  const query = section.trim().toLowerCase();
+  const headings = blocks
+    .map((block, index) => ({ block, index }))
+    .filter((entry) => entry.block.type === 'heading')
+    .map((entry) => ({
+      index: entry.index,
+      level: (entry.block as { props?: { level?: number } }).props?.level ?? 1,
+      text: blockText(entry.block).join(' ').trim(),
+    }));
+
+  const exact = headings.filter((heading) => heading.text.toLowerCase() === query);
+  const matches =
+    exact.length > 0
+      ? exact
+      : headings.filter((heading) => heading.text.toLowerCase().startsWith(query));
+  if (matches.length === 0) {
+    return { kind: 'not-found', headings: headings.map((heading) => heading.text) };
+  }
+  const start = matches[0];
+  if (matches.length > 1 || !start) {
+    return { kind: 'ambiguous', candidates: matches.map((match) => match.text) };
+  }
+  const end = headings.find(
+    (heading) => heading.index > start.index && heading.level <= start.level
+  );
+  return { kind: 'match', heading: start.text, blocks: blocks.slice(start.index, end?.index) };
+}
+
 /** Split a note into heading-delimited sections for embedding. */
 export function blocksToSections(blocks: NoteFile['blocks']): NoteSection[] {
   const sections: NoteSection[] = [];

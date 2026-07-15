@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import type { NoteFile } from '../core/note';
 import { listAllNotes, readNoteByPath } from '../core/note-listing';
-import { blocksToPlainText } from '../core/note-text';
+import { blocksToSections, sliceSection } from '../core/note-text';
 import { getNoatHome } from '../core/paths';
 import { SearchEngine } from '../core/search/engine';
 import { initStore } from '../core/store';
@@ -33,6 +33,9 @@ request blocks when you need exact structure. Writes (create_note,
 append_to_note, replace_note_content) accept markdown, which is converted to
 blocks server-side. Markdown supports headings, lists, checkboxes (- [ ]),
 code fences, tables, quotes, bold/italic/links.
+
+For large notes, call get_note_outline first (headings + section sizes), then
+read_note with section to fetch only the part you need.
 
 One custom inline element exists: "fileLink" (a clickable chip pointing to a
 workspace-relative file path). In markdown renderings it appears as inline
@@ -68,6 +71,9 @@ array — send BlockNote JSON directly. This preserves rich formatting that
 markdown cannot represent: text colors, background highlights, alignment,
 nested children, tables, and custom inline elements.
 
+For large notes, call get_note_outline first (headings + section sizes), then
+read_note with section to fetch only the part you need.
+
 Block shape: each block has "type", optional "id" (assigned if missing),
 "props" (type-specific, e.g. textColor, backgroundColor, textAlignment on
 paragraphs/headings), "content" (inline text with styles, or nested structure),
@@ -102,6 +108,29 @@ function parseBlocks(blocks: McpBlock[]): NoteFile['blocks'] {
   return prepareBlocks(blocks as NoteFile['blocks']);
 }
 
+function selectBlocks(
+  blocks: NoteFile['blocks'],
+  section: string | undefined
+):
+  | { ok: true; blocks: NoteFile['blocks']; matchedHeading?: string }
+  | { ok: false; error: Record<string, unknown> } {
+  if (!section) return { ok: true, blocks };
+  const slice = sliceSection(blocks, section);
+  if (slice.kind === 'not-found') {
+    return {
+      ok: false,
+      error: { error: `No heading matches "${section}"`, headings: slice.headings },
+    };
+  }
+  if (slice.kind === 'ambiguous') {
+    return {
+      ok: false,
+      error: { error: `"${section}" is ambiguous`, candidates: slice.candidates },
+    };
+  }
+  return { ok: true, blocks: slice.blocks, matchedHeading: slice.heading };
+}
+
 async function main(): Promise<void> {
   const noatHome = getNoatHome();
   await initStore(noatHome);
@@ -131,17 +160,26 @@ async function main(): Promise<void> {
       'read_note',
       {
         description:
-          'Read a note by notePath. Returns metadata and the full BlockNote blocks array.',
-        inputSchema: { notePath: z.string() },
+          'Read a note by notePath. Returns metadata and BlockNote blocks. For large notes, pass section (a heading from get_note_outline, or a unique prefix like "3.2") to read only that part.',
+        inputSchema: {
+          notePath: z.string(),
+          section: z
+            .string()
+            .optional()
+            .describe('Heading text (or unique prefix) — return only that section'),
+        },
       },
-      async ({ notePath }) => {
+      async ({ notePath, section }) => {
         const note = await readNoteByPath(noatHome, notePath);
+        const selected = selectBlocks(note.blocks, section);
+        if (!selected.ok) return json(selected.error);
         return json({
           notePath,
           title: note.title,
           createdAt: note.createdAt,
           updatedAt: note.updatedAt,
-          blocks: note.blocks,
+          ...(selected.matchedHeading && { section: selected.matchedHeading }),
+          blocks: selected.blocks,
         });
       }
     );
@@ -150,25 +188,32 @@ async function main(): Promise<void> {
       'read_note',
       {
         description:
-          'Read a note by notePath. Returns metadata, a markdown rendering, and optionally the raw BlockNote blocks.',
+          'Read a note by notePath. Returns metadata, a markdown rendering, and optionally the raw BlockNote blocks. For large notes, pass section (a heading from get_note_outline, or a unique prefix like "3.2") to read only that part.',
         inputSchema: {
           notePath: z.string(),
+          section: z
+            .string()
+            .optional()
+            .describe('Heading text (or unique prefix) — return only that section'),
           includeBlocks: z
             .boolean()
             .optional()
             .describe('Include raw BlockNote block JSON (default false)'),
         },
       },
-      async ({ notePath, includeBlocks }) => {
+      async ({ notePath, section, includeBlocks }) => {
         const note = await readNoteByPath(noatHome, notePath);
-        const markdown = await blocksToMarkdown(note.blocks);
+        const selected = selectBlocks(note.blocks, section);
+        if (!selected.ok) return json(selected.error);
+        const markdown = await blocksToMarkdown(selected.blocks);
         return json({
           notePath,
           title: note.title,
           createdAt: note.createdAt,
           updatedAt: note.updatedAt,
+          ...(selected.matchedHeading && { section: selected.matchedHeading }),
           markdown,
-          ...(includeBlocks && { blocks: note.blocks }),
+          ...(includeBlocks && { blocks: selected.blocks }),
         });
       }
     );
@@ -222,6 +267,7 @@ async function main(): Promise<void> {
       },
       async ({ scope, title, blocks, folder }) => {
         const notePath = await createNoteFile(noatHome, scope, folder, title, parseBlocks(blocks));
+        await engine.updateNote(notePath);
         return json({ created: notePath });
       }
     );
@@ -239,6 +285,7 @@ async function main(): Promise<void> {
           ...note,
           blocks: [...note.blocks, ...newBlocks],
         });
+        await engine.updateNote(notePath);
         return json({ appended: notePath, addedBlocks: newBlocks.length });
       }
     );
@@ -254,6 +301,7 @@ async function main(): Promise<void> {
         const note = await readNoteByPath(noatHome, notePath);
         const prepared = parseBlocks(blocks);
         await writeNoteFile(noatHome, notePath, { ...note, blocks: prepared });
+        await engine.updateNote(notePath);
         return json({ replaced: notePath, blocks: prepared.length });
       }
     );
@@ -273,6 +321,7 @@ async function main(): Promise<void> {
       async ({ scope, title, markdown, folder }) => {
         const blocks = await markdownToBlocks(markdown);
         const notePath = await createNoteFile(noatHome, scope, folder, title, blocks);
+        await engine.updateNote(notePath);
         return json({ created: notePath });
       }
     );
@@ -290,6 +339,7 @@ async function main(): Promise<void> {
           ...note,
           blocks: [...note.blocks, ...newBlocks],
         });
+        await engine.updateNote(notePath);
         return json({ appended: notePath, addedBlocks: newBlocks.length });
       }
     );
@@ -305,6 +355,7 @@ async function main(): Promise<void> {
         const note = await readNoteByPath(noatHome, notePath);
         const blocks = await markdownToBlocks(markdown);
         await writeNoteFile(noatHome, notePath, { ...note, blocks });
+        await engine.updateNote(notePath);
         return json({ replaced: notePath, blocks: blocks.length });
       }
     );
@@ -330,13 +381,16 @@ async function main(): Promise<void> {
     'get_note_outline',
     {
       description:
-        'Cheap structural view of a note: its headings and first lines, without full content. Useful before deciding to read a large note.',
+        'Cheap structural view of a note: every heading with the size of its section text. Use to decide which part of a large note is worth reading.',
       inputSchema: { notePath: z.string() },
     },
     async ({ notePath }) => {
       const note = await readNoteByPath(noatHome, notePath);
-      const lines = blocksToPlainText(note.blocks).split('\n').slice(0, 30);
-      return json({ notePath, title: note.title, updatedAt: note.updatedAt, preview: lines });
+      const sections = blocksToSections(note.blocks).map((section) => ({
+        heading: section.heading,
+        chars: section.text.length,
+      }));
+      return json({ notePath, title: note.title, updatedAt: note.updatedAt, sections });
     }
   );
 
