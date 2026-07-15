@@ -19,6 +19,7 @@ export interface StoreEntry {
   name: string;
   absPath: string;
   scope: NoteScope;
+  icon?: string;
 }
 
 export function scopeDir(noatHome: string, scope: NoteScope): string {
@@ -58,17 +59,34 @@ export async function listEntries(dirAbsPath: string, scope: NoteScope): Promise
     }
   })();
 
-  const entries = dirents.flatMap((dirent): StoreEntry[] => {
-    if (dirent.name.startsWith('.')) return [];
-    const absPath = path.join(dirAbsPath, dirent.name);
-    if (dirent.isDirectory()) {
-      return [{ kind: 'folder', name: dirent.name, absPath, scope }];
-    }
-    if (dirent.isFile() && isNoteFile(dirent.name)) {
-      return [{ kind: 'note', name: noteNameFromFile(dirent.name), absPath, scope }];
-    }
-    return [];
-  });
+  const entries = (
+    await Promise.all(
+      dirents.map(async (dirent): Promise<StoreEntry | undefined> => {
+        if (dirent.name.startsWith('.')) return undefined;
+        const absPath = path.join(dirAbsPath, dirent.name);
+        if (dirent.isDirectory()) {
+          return { kind: 'folder', name: dirent.name, absPath, scope };
+        }
+        if (dirent.isFile() && isNoteFile(dirent.name)) {
+          const icon = await (async () => {
+            try {
+              return (await readNote(absPath)).icon;
+            } catch {
+              return undefined;
+            }
+          })();
+          return {
+            kind: 'note',
+            name: noteNameFromFile(dirent.name),
+            absPath,
+            scope,
+            ...(icon && { icon }),
+          };
+        }
+        return undefined;
+      })
+    )
+  ).filter((entry): entry is StoreEntry => entry !== undefined);
 
   return entries.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;

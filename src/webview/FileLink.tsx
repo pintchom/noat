@@ -1,4 +1,5 @@
 import { createReactInlineContentSpec } from '@blocknote/react';
+import { FILE_ICON } from '../core/display-icons';
 import { vscodeApi } from './vscode-api';
 
 /**
@@ -20,7 +21,7 @@ export const FileLink = createReactInlineContentSpec(
       const open = () => vscodeApi.postMessage({ type: 'openFile', path: filePath });
       return (
         <button type="button" className="noat-file-link" title={filePath} onClick={open}>
-          <span className="noat-file-link-icon">{'</>'}</span>
+          <span className="noat-file-link-icon">{FILE_ICON}</span>
           {fileName}
         </button>
       );

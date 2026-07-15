@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6 — 2026-07-15
+
+- Fix `@` file references to exclude ignored build output, find files in large repositories, and prioritize working-tree changes
+
 ## 0.1.5 — 2026-07-08
 
 - Transparent icon background
