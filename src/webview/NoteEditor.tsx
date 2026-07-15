@@ -7,8 +7,10 @@ import {
   useCreateBlockNote,
 } from '@blocknote/react';
 import { useEffect, useState } from 'react';
+import { noteIconForStorage } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
+import { NoteIconPicker } from './NoteIconPicker';
 import { searchWorkspaceFiles } from './file-search-client';
 import '@blocknote/mantine/style.css';
 
@@ -46,6 +48,7 @@ export function NoteEditor({
   onEdit: (text: string) => void;
 }) {
   const [title, setTitle] = useState(note.title);
+  const [icon, setIcon] = useState(noteIconForStorage(note.icon));
   const isDark = useVsCodeDarkTheme();
 
   const editor = useCreateBlockNote({
@@ -54,11 +57,12 @@ export function NoteEditor({
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 
-  const emit = (nextTitle: string): void => {
+  const emit = (nextTitle: string, nextIcon: string | undefined): void => {
     onEdit(
       serializeNote({
         ...note,
         title: nextTitle,
+        icon: nextIcon,
         updatedAt: new Date().toISOString(),
         blocks: editor.document as unknown as NoteFile['blocks'],
       })
@@ -76,22 +80,35 @@ export function NoteEditor({
 
   return (
     <div className="noat-note">
-      <input
-        className="noat-title"
-        value={title}
-        placeholder="Untitled"
-        onChange={(event) => {
-          setTitle(event.target.value);
-          emit(event.target.value);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === 'ArrowDown') {
-            event.preventDefault();
-            editor.focus();
-          }
-        }}
-      />
-      <BlockNoteView editor={editor} theme={isDark ? 'dark' : 'light'} onChange={() => emit(title)}>
+      <div className="noat-title-area">
+        <NoteIconPicker
+          icon={icon}
+          onChange={(nextIcon) => {
+            setIcon(nextIcon);
+            emit(title, nextIcon);
+          }}
+        />
+        <input
+          className="noat-title"
+          value={title}
+          placeholder="Untitled"
+          onChange={(event) => {
+            setTitle(event.target.value);
+            emit(event.target.value, icon);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              editor.focus();
+            }
+          }}
+        />
+      </div>
+      <BlockNoteView
+        editor={editor}
+        theme={isDark ? 'dark' : 'light'}
+        onChange={() => emit(title, icon)}
+      >
         <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
       </BlockNoteView>
     </div>
