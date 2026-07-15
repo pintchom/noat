@@ -31,6 +31,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoatNode> {
   getTreeItem(node: NoatNode): vscode.TreeItem {
     if (node.type === 'scope') {
       const item = new vscode.TreeItem(node.label, vscode.TreeItemCollapsibleState.Expanded);
+      item.id = node.dirAbsPath;
       item.contextValue = node.scope.type === 'repo' ? 'scope-repo' : 'scope-global';
       item.iconPath = new vscode.ThemeIcon(node.scope.type === 'repo' ? 'repo' : 'globe');
       return item;
@@ -41,15 +42,16 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoatNode> {
 
     if (entry.kind === 'folder') {
       const item = new vscode.TreeItem(entry.name, vscode.TreeItemCollapsibleState.Collapsed);
+      item.id = entry.absPath;
       item.contextValue = `folder-${scopeSuffix}`;
       item.iconPath = vscode.ThemeIcon.Folder;
       return item;
     }
 
     const item = new vscode.TreeItem(entry.name, vscode.TreeItemCollapsibleState.None);
+    item.id = entry.absPath;
     item.contextValue = `note-${scopeSuffix}`;
     item.iconPath = new vscode.ThemeIcon('note');
-    item.resourceUri = vscode.Uri.file(entry.absPath);
     item.command = {
       command: 'noat.openNote',
       title: 'Open Note',
