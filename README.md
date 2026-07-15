@@ -30,6 +30,10 @@ Notes are either **global** (visible everywhere) or **scoped to a repository** (
 
 Results merge via reciprocal rank fusion. Everything runs locally — no API key, nothing leaves your machine.
 
+### Share notes as PDF
+
+Run `NOAT: Export Note as PDF` from the command palette (or right-click a note in the sidebar, or use the PDF icon on an open note tab) to save any note as a polished PDF — headings, lists, checklists, tables, code blocks, quotes, and links included. Everything renders locally; nothing leaves your machine.
+
 ### Agent access via MCP
 
 A bundled MCP server exposes your notes to AI agents:
@@ -89,7 +93,7 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 
 Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.
 
-Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`.
+Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Export Note as PDF`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`.
 
 ## MCP setup outside Cursor
 

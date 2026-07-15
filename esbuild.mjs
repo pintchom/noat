@@ -54,6 +54,14 @@ fs.copyFileSync(
   'dist/xhr-sync-worker.js'
 );
 
+// pdfkit loads its built-in font metrics (and ICC profile) at runtime via
+// __dirname + '/data/<name>' — with the bundle in dist/, that's dist/data.
+const pdfkitData = 'node_modules/pdfkit/js/data';
+fs.mkdirSync('dist/data', { recursive: true });
+for (const file of fs.readdirSync(pdfkitData)) {
+  fs.copyFileSync(`${pdfkitData}/${file}`, `dist/data/${file}`);
+}
+
 // onnxruntime's native binding is require()d at runtime as
 // ../bin/napi-v6/<platform>/<arch>/ relative to the bundle in dist/, i.e.
 // <root>/bin. Copy the target platform's binaries so the packaged extension
