@@ -204,8 +204,16 @@ body {
   border-radius: 4px;
   background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
   color: var(--vscode-textLink-foreground);
-  font-family: var(--vscode-editor-font-family, monospace);
+  /*
+   * Prefer the IDE's editor font, then modern monospace faces. Without these,
+   * a bare `monospace` fallback can resolve to serif'd Courier New on some
+   * systems, which reads like Times New Roman on a chip.
+   */
+  font-family: var(--vscode-editor-font-family, ui-monospace), ui-monospace, "SF Mono",
+    "Cascadia Code", "JetBrains Mono", "Fira Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   font-size: 0.9em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   cursor: pointer;
   white-space: nowrap;
 }
