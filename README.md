@@ -11,7 +11,7 @@ Stop taking notes in stray `.md` files or a separate app. NOAT gives you a real 
 
 ### A real editor, not a text file
 
-Notes open as normal editor tabs with a Notion-style block editor: type `/` for headings, checklists, tables, quotes, and code blocks (with syntax highlighting that uses your editor font). Native dirty-state and undo, plus auto-save moments after you stop typing.
+Notes open as normal editor tabs with a Notion-style block editor: type `/` for headings, checklists, tables, quotes, and code blocks (with syntax highlighting that uses your editor font). Format code the way you would in Slack: `Cmd+Shift+S` wraps the selection in inline code, `Cmd+Shift+Alt+S` turns the selected blocks into a code block. Native dirty-state and undo, plus auto-save moments after you stop typing.
 
 ### Link to code with `@`
 
@@ -90,6 +90,8 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 | `Cmd+Shift+S` (`Ctrl+Shift+S`) | Search notes (hybrid) |
 | `Cmd+Alt+P` (`Ctrl+Alt+P`) | Search notes (alternate binding) |
 | `Cmd+P` while the NOAT sidebar is focused | Search notes |
+| `Cmd+Shift+S` (`Ctrl+Shift+S`) inside a note | Format selection as inline code (Slack-style) |
+| `Cmd+Shift+Alt+S` (`Ctrl+Shift+Alt+S`) inside a note | Turn the selected blocks into a code block |
 
 Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.
 
@@ -97,17 +99,23 @@ Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NO
 
 ## MCP setup outside Cursor
 
-Cursor registers the MCP server automatically. For other MCP clients, point at the bundled server:
+Cursor registers the MCP server automatically. For other MCP clients, the extension keeps a copy of the server at a stable path inside the store and refreshes it on every update:
 
 ```json
 {
   "mcpServers": {
     "noat": {
       "command": "node",
-      "args": ["/path/to/extension/dist/mcp-server.js"]
+      "args": ["/Users/you/.noat/mcp/dist/mcp-server.js"]
     }
   }
 }
+```
+
+With Claude Code:
+
+```sh
+claude mcp add noat --scope user -- node ~/.noat/mcp/dist/mcp-server.js
 ```
 
 The server works standalone — it reads `~/.noat` directly and doesn't need the editor running. Set `NOAT_HOME` to use a different store location.
@@ -123,6 +131,7 @@ Everything lives in `~/.noat` (override with `NOAT_HOME`):
   .git/                  # your notes' own git history
   .cache/                # embedding model cache (gitignored)
   .index/                # search indexes — derived, rebuildable (gitignored)
+  mcp/                   # stable copy of the MCP server (gitignored)
   notes/
     global/              # universal notes, nested folders allowed
     repos/<repo-key>/    # notes scoped to one repository

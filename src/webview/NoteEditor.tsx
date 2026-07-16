@@ -13,12 +13,13 @@ import {
   useCreateBlockNote,
 } from '@blocknote/react';
 import { createParser } from 'prosemirror-highlight/shiki';
-import { useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useState } from 'react';
 import { noteIconForStorage } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
 import { searchWorkspaceFiles } from './file-search-client';
+import { smartArrows } from './smart-arrows';
 import '@blocknote/mantine/style.css';
 
 /**
@@ -89,6 +90,7 @@ export function NoteEditor({
 
   const editor = useCreateBlockNote({
     schema,
+    extensions: [smartArrows],
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 
@@ -112,6 +114,32 @@ export function NoteEditor({
         editor.insertInlineContent([{ type: 'fileLink', props: { path: file } }, ' ']);
       },
     }));
+
+  const toggleCodeBlock = (): void => {
+    const selectedBlocks = editor.getSelection()?.blocks ?? [editor.getTextCursorPosition().block];
+    const targetType = selectedBlocks.every((block) => block.type === 'codeBlock')
+      ? ('paragraph' as const)
+      : ('codeBlock' as const);
+    for (const block of selectedBlocks) {
+      editor.updateBlock(block, { type: targetType });
+    }
+  };
+
+  // Slack-style code formatting: Mod+Shift+S toggles inline code on the
+  // selection, Mod+Shift+Alt+S toggles the selected blocks into a code block.
+  // Runs in the capture phase because Tiptap's strike extension binds
+  // Mod+Shift+S inside ProseMirror and would otherwise consume the event.
+  // event.code is used because Alt+S produces a different event.key on macOS.
+  const onFormattingKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.code !== 'KeyS') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.altKey) {
+      toggleCodeBlock();
+    } else {
+      editor.toggleStyles({ code: true });
+    }
+  };
 
   return (
     <div className="noat-note">
@@ -139,13 +167,15 @@ export function NoteEditor({
           }}
         />
       </div>
-      <BlockNoteView
-        editor={editor}
-        theme={isDark ? 'dark' : 'light'}
-        onChange={() => emit(title, icon)}
-      >
-        <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
-      </BlockNoteView>
+      <div onKeyDownCapture={onFormattingKeyDown}>
+        <BlockNoteView
+          editor={editor}
+          theme={isDark ? 'dark' : 'light'}
+          onChange={() => emit(title, icon)}
+        >
+          <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
+        </BlockNoteView>
+      </div>
     </div>
   );
 }
