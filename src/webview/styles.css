@@ -244,18 +244,23 @@ body {
 .bn-block-content[data-content-type="codeBlock"] {
   background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.12)) !important;
   border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.25));
-  border-radius: 6px;
+  border-radius: 8px;
+}
+
+.bn-block-content[data-content-type="codeBlock"] > pre {
+  padding: 20px 24px;
 }
 
 .bn-block-content[data-content-type="codeBlock"] pre,
 .bn-block-content[data-content-type="codeBlock"] code {
   background: transparent !important;
   color: var(--vscode-editor-foreground);
-  /* Match the IDE's editor typography. */
-  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
-  font-size: var(--vscode-editor-font-size, 13px);
+  font-family: var(--vscode-editor-font-family, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  /* Sized against the note's 16px prose rather than the IDE's editor font
+     setting, which is often too small to read comfortably in a document. */
+  font-size: 0.875em;
   font-weight: var(--vscode-editor-font-weight, normal);
-  line-height: 1.5;
+  line-height: 1.6;
   font-variant-ligatures: contextual;
 }
 
@@ -264,10 +269,41 @@ body {
   background: transparent !important;
 }
 
-/* Language picker in the code block corner */
-.bn-block-content[data-content-type="codeBlock"] select,
-.bn-block-content[data-content-type="codeBlock"] .bn-select {
+/*
+ * Tokens carry GitHub Light colors inline and the GitHub Dark palette as
+ * `--shiki-dark*` custom properties (see the code block spec in
+ * NoteEditor.tsx) — switch palettes when the IDE theme is dark. !important
+ * is required to beat the inline light-theme styles.
+ */
+body.vscode-dark .bn-block-content[data-content-type="codeBlock"] .shiki,
+body.vscode-high-contrast .bn-block-content[data-content-type="codeBlock"] .shiki {
+  color: var(--shiki-dark) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
+}
+
+/* Language picker in the code block corner: move it to the top right and
+   show it instantly on hover instead of BlockNote's 1s-delayed fade. The
+   badge gets the editor background so it stays legible over long lines. */
+.bn-block-content[data-content-type="codeBlock"] > div > select {
+  left: auto;
+  right: 10px;
+  top: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--vscode-editor-background, transparent);
+  font-family: var(--vscode-font-family);
+  font-size: 11px;
   color: var(--vscode-descriptionForeground);
+  transition: opacity 0.15s;
+  transition-delay: 0s;
+}
+
+.bn-block-content[data-content-type="codeBlock"]:hover > div > select,
+.bn-block-content[data-content-type="codeBlock"] > div > select:focus {
+  opacity: 1;
+  transition-delay: 0s;
 }
 
 /* Inline code style (backtick text) — keep a chip, but themed */
