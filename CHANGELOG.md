@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Code blocks get real syntax highlighting (GitHub Light/Dark via Shiki) that follows the IDE's light or dark theme live, larger readable text sized to the note instead of the editor font setting, and a language picker in the top-right corner that appears instantly on hover.
+
 ## 0.1.8 — 2026-07-15
 
 - `NOAT: Export Note as PDF` — save any note as a shareable PDF from the command palette, the sidebar context menu, or the PDF button on an open note tab. Renders headings, lists, checklists, tables, code blocks, quotes, links, and file chips entirely locally.

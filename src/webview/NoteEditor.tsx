@@ -1,11 +1,18 @@
 import { codeBlockOptions } from '@blocknote/code-block';
-import { BlockNoteSchema, type PartialBlock, defaultInlineContentSpecs } from '@blocknote/core';
+import {
+  BlockNoteSchema,
+  type PartialBlock,
+  createCodeBlockSpec,
+  defaultBlockSpecs,
+  defaultInlineContentSpecs,
+} from '@blocknote/core';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
   type DefaultReactSuggestionItem,
   SuggestionMenuController,
   useCreateBlockNote,
 } from '@blocknote/react';
+import { createParser } from 'prosemirror-highlight/shiki';
 import { useEffect, useState } from 'react';
 import { noteIconForStorage } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
@@ -14,7 +21,36 @@ import { NoteIconPicker } from './NoteIconPicker';
 import { searchWorkspaceFiles } from './file-search-client';
 import '@blocknote/mantine/style.css';
 
+/**
+ * Code block spec with Shiki syntax highlighting. The default spec ships
+ * without a highlighter (BlockNote keeps it out to save bundle size), so
+ * code blocks would render as plain text.
+ *
+ * BlockNote's highlight plugin reuses a parser cached under the well-known
+ * `Symbol.for('blocknote.shikiParser')` before building its own single-theme
+ * one. Registering a dual-theme parser before the highlighter promise
+ * resolves makes every token carry both palettes (GitHub Light inline,
+ * GitHub Dark via the `--shiki-dark` custom property), so styles.css can
+ * follow IDE theme changes live without re-highlighting.
+ */
+const codeBlock = createCodeBlockSpec({
+  ...codeBlockOptions,
+  createHighlighter: async () => {
+    const highlighter = await codeBlockOptions.createHighlighter();
+    const parser = createParser(highlighter, {
+      themes: { light: 'github-light', dark: 'github-dark' },
+      defaultColor: 'light',
+    });
+    (globalThis as Record<symbol, unknown>)[Symbol.for('blocknote.shikiParser')] = parser;
+    return highlighter;
+  },
+});
+
 const schema = BlockNoteSchema.create({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    codeBlock,
+  },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,
     fileLink: FileLink,
@@ -53,7 +89,6 @@ export function NoteEditor({
 
   const editor = useCreateBlockNote({
     schema,
-    codeBlock: codeBlockOptions,
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 
