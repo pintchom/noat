@@ -11,7 +11,7 @@ Stop taking notes in stray `.md` files or a separate app. NOAT gives you a real 
 
 ### A real editor, not a text file
 
-Notes open as normal editor tabs with a Notion-style block editor: type `/` for headings, checklists, tables, quotes, and code blocks (with syntax highlighting that uses your editor font). Native dirty-state and undo, plus auto-save moments after you stop typing.
+Notes open as normal editor tabs with a Notion-style block editor: type `/` for headings, checklists, tables, quotes, and code blocks (with syntax highlighting that uses your editor font). Format code the way you would in Slack: `Cmd+Shift+S` wraps the selection in inline code, `Cmd+Shift+Alt+S` turns the selected blocks into a code block. Native dirty-state and undo, plus auto-save moments after you stop typing.
 
 ### Link to code with `@`
 
@@ -90,6 +90,8 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 | `Cmd+Shift+S` (`Ctrl+Shift+S`) | Search notes (hybrid) |
 | `Cmd+Alt+P` (`Ctrl+Alt+P`) | Search notes (alternate binding) |
 | `Cmd+P` while the NOAT sidebar is focused | Search notes |
+| `Cmd+Shift+S` (`Ctrl+Shift+S`) inside a note | Format selection as inline code (Slack-style) |
+| `Cmd+Shift+Alt+S` (`Ctrl+Shift+Alt+S`) inside a note | Turn the selected blocks into a code block |
 
 Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.
 
