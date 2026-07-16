@@ -12,6 +12,7 @@ import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
 import { searchWorkspaceFiles } from './file-search-client';
+import { smartArrows } from './smart-arrows';
 import '@blocknote/mantine/style.css';
 
 const schema = BlockNoteSchema.create({
@@ -54,6 +55,7 @@ export function NoteEditor({
   const editor = useCreateBlockNote({
     schema,
     codeBlock: codeBlockOptions,
+    extensions: [smartArrows],
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 
