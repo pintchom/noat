@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Code blocks and inline code no longer fall back to serif'd Courier/Times when the IDE's editor font can't be resolved inside the webview — they now use the same modern monospace fallback stack as file link chips
+
 ## 0.1.9 — 2026-07-16
 
 - Code blocks get real syntax highlighting (GitHub Light/Dark via Shiki) that follows the IDE's light or dark theme live, larger readable text sized to the note instead of the editor font setting, and a language picker in the top-right corner that appears instantly on hover.

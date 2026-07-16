@@ -255,7 +255,15 @@ body {
 .bn-block-content[data-content-type="codeBlock"] code {
   background: transparent !important;
   color: var(--vscode-editor-foreground);
-  font-family: var(--vscode-editor-font-family, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  /*
+   * The IDE's editor font first, then modern monospace faces. The extra
+   * entries must sit outside the var() fallback: the variable is always
+   * defined in a webview, and when it names a font the webview can't
+   * resolve, Chromium would otherwise fall back to serif'd Courier/Times.
+   * Same fix as the file-link chips above.
+   */
+  font-family: var(--vscode-editor-font-family, ui-monospace), ui-monospace, "SF Mono",
+    "Cascadia Code", "JetBrains Mono", "Fira Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   /* Sized against the note's 16px prose rather than the IDE's editor font
      setting, which is often too small to read comfortably in a document. */
   font-size: 0.875em;
@@ -312,6 +320,7 @@ body.vscode-high-contrast .bn-block-content[data-content-type="codeBlock"] .shik
   background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
   border-radius: 3px;
   padding: 1px 4px;
-  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  font-family: var(--vscode-editor-font-family, ui-monospace), ui-monospace, "SF Mono",
+    "Cascadia Code", "JetBrains Mono", "Fira Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   font-size: 0.9em;
 }
