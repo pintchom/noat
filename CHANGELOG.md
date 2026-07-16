@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Slack-style code formatting shortcuts in the note editor: `Cmd+Shift+S` toggles inline code on the selection, `Cmd+Shift+Alt+S` turns the selected blocks into a code block (`Ctrl` on Windows/Linux).
+
 ## 0.1.8 — 2026-07-15
 
 - `NOAT: Export Note as PDF` — save any note as a shareable PDF from the command palette, the sidebar context menu, or the PDF button on an open note tab. Renders headings, lists, checklists, tables, code blocks, quotes, links, and file chips entirely locally.

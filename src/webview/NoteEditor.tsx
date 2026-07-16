@@ -6,7 +6,7 @@ import {
   SuggestionMenuController,
   useCreateBlockNote,
 } from '@blocknote/react';
-import { useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useState } from 'react';
 import { noteIconForStorage } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
@@ -80,6 +80,32 @@ export function NoteEditor({
       },
     }));
 
+  const toggleCodeBlock = (): void => {
+    const selectedBlocks = editor.getSelection()?.blocks ?? [editor.getTextCursorPosition().block];
+    const targetType = selectedBlocks.every((block) => block.type === 'codeBlock')
+      ? ('paragraph' as const)
+      : ('codeBlock' as const);
+    for (const block of selectedBlocks) {
+      editor.updateBlock(block, { type: targetType });
+    }
+  };
+
+  // Slack-style code formatting: Mod+Shift+S toggles inline code on the
+  // selection, Mod+Shift+Alt+S toggles the selected blocks into a code block.
+  // Runs in the capture phase because Tiptap's strike extension binds
+  // Mod+Shift+S inside ProseMirror and would otherwise consume the event.
+  // event.code is used because Alt+S produces a different event.key on macOS.
+  const onFormattingKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.code !== 'KeyS') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.altKey) {
+      toggleCodeBlock();
+    } else {
+      editor.toggleStyles({ code: true });
+    }
+  };
+
   return (
     <div className="noat-note">
       <div className="noat-title-area">
@@ -106,13 +132,15 @@ export function NoteEditor({
           }}
         />
       </div>
-      <BlockNoteView
-        editor={editor}
-        theme={isDark ? 'dark' : 'light'}
-        onChange={() => emit(title, icon)}
-      >
-        <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
-      </BlockNoteView>
+      <div onKeyDownCapture={onFormattingKeyDown}>
+        <BlockNoteView
+          editor={editor}
+          theme={isDark ? 'dark' : 'light'}
+          onChange={() => emit(title, icon)}
+        >
+          <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
+        </BlockNoteView>
+      </div>
     </div>
   );
 }
