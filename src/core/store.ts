@@ -29,15 +29,19 @@ export function scopeDir(noatHome: string, scope: NoteScope): string {
     : getRepoNotesDir(noatHome, scope.repoKey);
 }
 
+const REQUIRED_GITIGNORES = ['.cache/', '.index/', '.DS_Store', 'mcp/'];
+
 /** Create the on-disk layout and git-init the store. Idempotent. */
 export async function initStore(noatHome: string): Promise<void> {
   await fs.mkdir(getGlobalNotesDir(noatHome), { recursive: true });
   await fs.mkdir(getReposNotesDir(noatHome), { recursive: true });
   const gitignorePath = path.join(noatHome, '.gitignore');
-  try {
-    await fs.access(gitignorePath);
-  } catch {
-    await fs.writeFile(gitignorePath, '.cache/\n.index/\n.DS_Store\n');
+  const existing = await fs.readFile(gitignorePath, 'utf8').catch(() => '');
+  const lines = new Set(existing.split('\n').map((line) => line.trim()));
+  const missing = REQUIRED_GITIGNORES.filter((entry) => !lines.has(entry));
+  if (missing.length > 0) {
+    const prefix = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
+    await fs.appendFile(gitignorePath, `${prefix}${missing.join('\n')}\n`);
   }
   await ensureGitRepo(noatHome);
 }

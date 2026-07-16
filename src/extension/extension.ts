@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { writeConfig } from '../core/config';
+import { syncMcpRuntime } from '../core/mcp-runtime';
 import { getNoatHome } from '../core/paths';
 import { getNotesRoot } from '../core/paths';
 import { SearchEngine } from '../core/search/engine';
@@ -40,6 +41,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   void gitSync.start();
 
   registerMcpServer(context, noatHome);
+
+  // Refresh the MCP runtime copy at the store's stable path.
+  void syncMcpRuntime(
+    context.extensionPath,
+    String(context.extension.packageJSON.version),
+    noatHome
+  ).catch((error) => logError('failed to sync MCP runtime', error));
 
   // Mirror IDE settings into the store's config.json so the standalone MCP
   // server honors them in any host (Cursor, VS Code, or manual mcp.json).
