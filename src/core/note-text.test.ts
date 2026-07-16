@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NoteFile } from './note';
-import { blocksToSections, sliceSection } from './note-text';
+import { blocksToPlainText, blocksToSections, sliceSection } from './note-text';
 
 type Blocks = NoteFile['blocks'];
 
@@ -101,5 +101,26 @@ describe('blocksToSections', () => {
       '2.1 Stripe',
     ]);
     expect(sections[0]?.text).toBe('intro text');
+  });
+});
+
+describe('blocksToPlainText', () => {
+  it('extracts fileLink paths and noteLink titles', () => {
+    const withChips: Blocks = [
+      {
+        id: 'p',
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'See ', styles: {} },
+          {
+            type: 'noteLink',
+            props: { notePath: 'global/Ideas.noat.json', title: 'Ideas', icon: '' },
+          },
+          { type: 'text', text: ' and ', styles: {} },
+          { type: 'fileLink', props: { path: 'src/core/note.ts' } },
+        ],
+      },
+    ];
+    expect(blocksToPlainText(withChips)).toBe('See Ideas and src/core/note.ts');
   });
 });

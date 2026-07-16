@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `/page` slash command, Notion-style: pick another note from a search menu and insert an inline link chip (styled like `@` file references). Clicking the chip opens the linked note beside the current one.
 - Slack-style code formatting shortcuts in the note editor: `Cmd+Shift+S` toggles inline code on the selection, `Cmd+Shift+Alt+S` turns the selected blocks into a code block (`Ctrl` on Windows/Linux).
 
 ## 0.1.8 — 2026-07-15
