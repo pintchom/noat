@@ -42,6 +42,26 @@ describe('initStore', () => {
   it('is idempotent', async () => {
     await expect(initStore(noatHome)).resolves.toBeUndefined();
   });
+
+  it('writes required gitignore entries', async () => {
+    const content = await fs.readFile(path.join(noatHome, '.gitignore'), 'utf8');
+    const lines = content.split('\n');
+    for (const entry of ['.cache/', '.index/', '.DS_Store', 'mcp/']) {
+      expect(lines).toContain(entry);
+    }
+  });
+
+  it('appends missing gitignore entries without disturbing existing lines', async () => {
+    const gitignorePath = path.join(noatHome, '.gitignore');
+    await fs.writeFile(gitignorePath, 'custom/\n.cache/\n');
+    await initStore(noatHome);
+    const lines = (await fs.readFile(gitignorePath, 'utf8')).split('\n');
+    expect(lines).toContain('custom/');
+    expect(lines).toContain('mcp/');
+    expect(lines.filter((line) => line === '.cache/')).toHaveLength(1);
+    await initStore(noatHome);
+    expect(await fs.readFile(gitignorePath, 'utf8')).toBe(lines.join('\n'));
+  });
 });
 
 describe('notes CRUD', () => {

@@ -97,17 +97,23 @@ Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NO
 
 ## MCP setup outside Cursor
 
-Cursor registers the MCP server automatically. For other MCP clients, point at the bundled server:
+Cursor registers the MCP server automatically. For other MCP clients, the extension keeps a copy of the server at a stable path inside the store and refreshes it on every update:
 
 ```json
 {
   "mcpServers": {
     "noat": {
       "command": "node",
-      "args": ["/path/to/extension/dist/mcp-server.js"]
+      "args": ["/Users/you/.noat/mcp/dist/mcp-server.js"]
     }
   }
 }
+```
+
+With Claude Code:
+
+```sh
+claude mcp add noat --scope user -- node ~/.noat/mcp/dist/mcp-server.js
 ```
 
 The server works standalone — it reads `~/.noat` directly and doesn't need the editor running. Set `NOAT_HOME` to use a different store location.
@@ -123,6 +129,7 @@ Everything lives in `~/.noat` (override with `NOAT_HOME`):
   .git/                  # your notes' own git history
   .cache/                # embedding model cache (gitignored)
   .index/                # search indexes — derived, rebuildable (gitignored)
+  mcp/                   # stable copy of the MCP server (gitignored)
   notes/
     global/              # universal notes, nested folders allowed
     repos/<repo-key>/    # notes scoped to one repository
