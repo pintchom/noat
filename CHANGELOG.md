@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.1.9 — 2026-07-16
 
 - Code blocks get real syntax highlighting (GitHub Light/Dark via Shiki) that follows the IDE's light or dark theme live, larger readable text sized to the note instead of the editor font setting, and a language picker in the top-right corner that appears instantly on hover.
 - Slack-style code formatting shortcuts in the note editor: `Cmd+Shift+S` toggles inline code on the selection, `Cmd+Shift+Alt+S` turns the selected blocks into a code block (`Ctrl` on Windows/Linux).
+- Typing `-->` becomes a real arrow (→); code blocks and inline code are left untouched
+- File link chips use a modern monospace font stack instead of falling back to Courier
+- The MCP server is copied to a stable path in the store (`~/.noat/mcp/dist/mcp-server.js`) and refreshed on every update, so non-Cursor MCP clients like Claude Code can point at it; unknown note fields are preserved across versions
 
 ## 0.1.8 — 2026-07-15
 
