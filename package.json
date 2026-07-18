@@ -2,7 +2,7 @@
   "name": "noat",
   "displayName": "NOAT",
   "description": "Notion-style notes inside your IDE. Local-first, git-versioned, MCP-accessible.",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "publisher": "pintchom",
   "license": "MIT",
   "repository": {
@@ -294,6 +294,7 @@
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.2.0",
     "esbuild": "^0.24.0",
+    "prosemirror-highlight": "^0.15.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.7.0",
