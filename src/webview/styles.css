@@ -314,6 +314,86 @@ body.vscode-high-contrast .bn-block-content[data-content-type="codeBlock"] .shik
   transition-delay: 0s;
 }
 
+/* In-note find widget (Cmd/Ctrl+F), floating VS Code style */
+.noat-find-bar {
+  position: fixed;
+  top: 12px;
+  right: 20px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 6px;
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.25));
+  font-family: var(--vscode-font-family);
+  font-size: 12px;
+  color: var(--vscode-editorWidget-foreground, var(--vscode-foreground));
+}
+
+.noat-find-input {
+  width: 180px;
+  padding: 3px 6px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 3px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  outline: none;
+}
+
+.noat-find-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.noat-find-count {
+  min-width: 56px;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground);
+}
+
+.noat-find-no-results {
+  color: var(--vscode-errorForeground, #f48771);
+}
+
+.noat-find-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.noat-find-button:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+}
+
+.noat-find-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Find match highlights (ProseMirror inline decorations) */
+.noat-find-match {
+  background: var(--vscode-editor-findMatchHighlightBackground, rgba(234, 146, 20, 0.33));
+  border-radius: 2px;
+}
+
+.noat-find-match-current {
+  background: var(--vscode-editor-findMatchBackground, rgba(255, 150, 50, 0.65));
+  outline: 1px solid var(--vscode-editor-findMatchBorder, transparent);
+}
+
 /* Inline code style (backtick text) — keep a chip, but themed */
 .bn-inline-content code,
 .bn-editor :not([data-content-type="codeBlock"]) > * code {
