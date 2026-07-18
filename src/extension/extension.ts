@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { writeConfig } from '../core/config';
 import { syncMcpRuntime } from '../core/mcp-runtime';
+import { NOTE_EXTENSION } from '../core/note';
 import { getNoatHome } from '../core/paths';
 import { getNotesRoot } from '../core/paths';
 import { SearchEngine } from '../core/search/engine';
@@ -137,15 +138,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             progress.report({ message: `${done}/${total} sections embedded` });
           })
       )
-    ),
-    // Keep search indexes fresh as notes are saved (editor or agent writes).
-    vscode.workspace.onDidSaveTextDocument((document) => {
-      const notesRoot = getNotesRoot(noatHome);
-      const filePath = document.uri.fsPath;
-      if (!filePath.startsWith(notesRoot + path.sep) || !filePath.endsWith('.noat.json')) return;
-      tree.refresh();
-      void searchEngine.updateNote(path.relative(notesRoot, filePath));
-    })
+    )
+  );
+
+  // Watch the store on disk so any write refreshes the sidebar and search
+  // indexes automatically — editor saves, MCP/agent writes from other
+  // processes, and git operations alike. The store lives outside the
+  // workspace, so this needs an explicit RelativePattern watcher.
+  const notesRoot = getNotesRoot(noatHome);
+  const notesWatcher = vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(vscode.Uri.file(notesRoot), `**/*${NOTE_EXTENSION}`)
+  );
+  // Coalesce bursts (multi-note agent writes, duplicate watcher events) into
+  // one sidebar refresh; search updates are queued per note and idempotent.
+  let refreshTimer: NodeJS.Timeout | undefined;
+  const onNoteFileEvent = (uri: vscode.Uri): void => {
+    void searchEngine.updateNote(path.relative(notesRoot, uri.fsPath));
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => tree.refresh(), 150);
+  };
+  context.subscriptions.push(
+    notesWatcher,
+    notesWatcher.onDidCreate(onNoteFileEvent),
+    notesWatcher.onDidChange(onNoteFileEvent),
+    notesWatcher.onDidDelete(onNoteFileEvent),
+    { dispose: () => refreshTimer && clearTimeout(refreshTimer) }
   );
 
   register('noat.newNote', async (node) => {
