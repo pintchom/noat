@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The `-->` → `→` smart arrow now also works inside inline code (`Cmd+Shift+S`) and code blocks (`Cmd+Shift+Alt+S`), which TipTap's input rules skip
+
 - Code blocks and inline code no longer fall back to serif'd Courier/Times when the IDE's editor font can't be resolved inside the webview — they now use the same modern monospace fallback stack as file link chips
 
 ## 0.1.9 — 2026-07-16
