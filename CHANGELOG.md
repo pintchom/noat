@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Notes now auto-reload after MCP/agent writes: a file watcher on the note store refreshes the sidebar, updates search indexes, and reloads open note tabs the moment a note changes on disk — no manual `NOAT: Refresh Notes` needed.
+- Code blocks and inline code no longer fall back to serif'd Courier/Times when the IDE's editor font can't be resolved inside the webview — they now use the same modern monospace fallback stack as file link chips
 
 ## 0.1.9 — 2026-07-16
 
