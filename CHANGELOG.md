@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Find in note: `Cmd+F` (`Ctrl+F` on Windows/Linux) opens a floating find bar inside an open note — all matches highlight in the document, Enter / Shift+Enter (or the arrows) step through them with wraparound, a counter shows "n of m", a text selection seeds the query, and Escape returns to the editor. Highlights follow the IDE's find-match theme colors.
+
 - Code blocks and inline code no longer fall back to serif'd Courier/Times when the IDE's editor font can't be resolved inside the webview — they now use the same modern monospace fallback stack as file link chips
 
 ## 0.1.9 — 2026-07-16

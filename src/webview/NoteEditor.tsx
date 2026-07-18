@@ -13,12 +13,14 @@ import {
   useCreateBlockNote,
 } from '@blocknote/react';
 import { createParser } from 'prosemirror-highlight/shiki';
-import { type KeyboardEvent, useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { noteIconForStorage } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
+import { FindBar } from './FindBar';
 import { NoteIconPicker } from './NoteIconPicker';
 import { searchWorkspaceFiles } from './file-search-client';
+import { findHighlights, findMatches, findPluginKey } from './find';
 import { smartArrows } from './smart-arrows';
 import '@blocknote/mantine/style.css';
 
@@ -77,6 +79,22 @@ function useVsCodeDarkTheme(): boolean {
   return isDark;
 }
 
+interface FindBarState {
+  open: boolean;
+  query: string;
+  activeIndex: number;
+  matchCount: number;
+  focusToken: number;
+}
+
+const CLOSED_FIND: FindBarState = {
+  open: false,
+  query: '',
+  activeIndex: 0,
+  matchCount: 0,
+  focusToken: 0,
+};
+
 export function NoteEditor({
   note,
   onEdit,
@@ -86,11 +104,12 @@ export function NoteEditor({
 }) {
   const [title, setTitle] = useState(note.title);
   const [icon, setIcon] = useState(noteIconForStorage(note.icon));
+  const [find, setFind] = useState(CLOSED_FIND);
   const isDark = useVsCodeDarkTheme();
 
   const editor = useCreateBlockNote({
     schema,
-    extensions: [smartArrows],
+    extensions: [smartArrows, findHighlights],
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 
@@ -114,6 +133,79 @@ export function NoteEditor({
         editor.insertInlineContent([{ type: 'fileLink', props: { path: file } }, ' ']);
       },
     }));
+
+  /**
+   * Recompute matches for the query, highlight them in the document (the
+   * requested index becomes the emphasized "current" match, wrapping in both
+   * directions), and scroll it into view. Returns what was actually applied.
+   */
+  const applyFind = (query: string, index: number): { matchCount: number; activeIndex: number } => {
+    const view = editor.prosemirrorView;
+    if (!view) return { matchCount: 0, activeIndex: 0 };
+    const matches = findMatches(view.state.doc, query);
+    const activeIndex =
+      matches.length > 0 ? ((index % matches.length) + matches.length) % matches.length : 0;
+    view.dispatch(view.state.tr.setMeta(findPluginKey, { matches, activeIndex }));
+    view.dom.querySelector('.noat-find-match-current')?.scrollIntoView({ block: 'nearest' });
+    return { matchCount: matches.length, activeIndex };
+  };
+
+  const openFind = (): void => {
+    // Like VS Code's find widget, a text selection seeds the query.
+    const view = editor.prosemirrorView;
+    const selected = view
+      ? view.state.doc.textBetween(view.state.selection.from, view.state.selection.to, ' ')
+      : '';
+    const query = selected.trim().length > 0 ? selected : find.query;
+    const applied = applyFind(query, 0);
+    setFind((state) => ({
+      open: true,
+      query,
+      ...applied,
+      focusToken: state.focusToken + 1,
+    }));
+  };
+
+  const changeFindQuery = (query: string): void => {
+    const applied = applyFind(query, 0);
+    setFind((state) => ({ ...state, query, ...applied }));
+  };
+
+  const navigateFind = (direction: 1 | -1): void => {
+    const applied = applyFind(find.query, find.activeIndex + direction);
+    setFind((state) => ({ ...state, ...applied }));
+  };
+
+  const closeFind = (): void => {
+    applyFind('', 0);
+    setFind((state) => ({ ...CLOSED_FIND, query: state.query, focusToken: state.focusToken }));
+    editor.focus();
+  };
+
+  // Cmd/Ctrl+F anywhere in the webview opens the find bar (capture phase, so
+  // it wins over ProseMirror and VS Code's keybinding forwarding). A ref keeps
+  // the window listener stable while reading fresh state.
+  const openFindRef = useRef(openFind);
+  openFindRef.current = openFind;
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
+      if (event.code !== 'KeyF') return;
+      event.preventDefault();
+      event.stopPropagation();
+      openFindRef.current();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, []);
+
+  // Edits shift or destroy matches; re-run the search so highlights and the
+  // match count stay accurate while the find bar is open.
+  const refreshFind = (): void => {
+    if (!find.open || !find.query) return;
+    const applied = applyFind(find.query, find.activeIndex);
+    setFind((state) => ({ ...state, ...applied }));
+  };
 
   const toggleCodeBlock = (): void => {
     const selectedBlocks = editor.getSelection()?.blocks ?? [editor.getTextCursorPosition().block];
@@ -143,6 +235,17 @@ export function NoteEditor({
 
   return (
     <div className="noat-note">
+      {find.open && (
+        <FindBar
+          query={find.query}
+          matchCount={find.matchCount}
+          activeIndex={find.activeIndex}
+          focusToken={find.focusToken}
+          onQueryChange={changeFindQuery}
+          onNavigate={navigateFind}
+          onClose={closeFind}
+        />
+      )}
       <div className="noat-title-area">
         <NoteIconPicker
           icon={icon}
@@ -171,7 +274,10 @@ export function NoteEditor({
         <BlockNoteView
           editor={editor}
           theme={isDark ? 'dark' : 'light'}
-          onChange={() => emit(title, icon)}
+          onChange={() => {
+            emit(title, icon);
+            refreshFind();
+          }}
         >
           <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
         </BlockNoteView>
