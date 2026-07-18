@@ -84,6 +84,13 @@ and optional "children" for nested blocks.
 Inline text items look like:
 { "type": "text", "text": "hello", "styles": { "bold": true, "textColor": "red", "backgroundColor": "yellow" } }
 
+Colors are named palette values, not hex: default, gray, brown, red, orange,
+yellow, green, blue, purple, pink. When color-coding, set EITHER textColor OR
+backgroundColor — not both. Never give text the same color as its background
+(e.g. red text on a red highlight is unreadable); if you set a
+backgroundColor, leave textColor as "default" so the text stays readable in
+both light and dark themes.
+
 Custom inline element "fileLink": { "type": "fileLink", "props": { "path": "src/foo.ts" } }
 
 Study an existing note with read_note before writing richly formatted content

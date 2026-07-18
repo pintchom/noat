@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NoteFile } from '../core/note';
-import { blocksToMarkdown, markdownToBlocks } from './markdown';
+import { blocksToMarkdown, markdownToBlocks, prepareBlocks } from './markdown';
 
 type Block = NoteFile['blocks'][number];
 
@@ -126,5 +126,124 @@ describe('markdownToBlocks fileLink promotion', () => {
     expect(chips(reparsed).map((chip) => chip.props?.path)).toEqual(
       chips(original).map((chip) => chip.props?.path)
     );
+  });
+});
+
+describe('prepareBlocks color contrast', () => {
+  const paragraph = (overrides: Record<string, unknown>): Block =>
+    ({ type: 'paragraph', ...overrides }) as unknown as Block;
+
+  it('resets inline textColor when it matches backgroundColor', () => {
+    const blocks = prepareBlocks([
+      paragraph({
+        content: [
+          { type: 'text', text: 'hi', styles: { textColor: 'red', backgroundColor: 'red' } },
+        ],
+      }),
+    ]);
+    const inline = allInline(blocks)[0] as { styles?: Record<string, unknown> };
+    expect(inline.styles).toEqual({ textColor: 'default', backgroundColor: 'red' });
+  });
+
+  it('resets block-level textColor when it matches backgroundColor', () => {
+    const blocks = prepareBlocks([
+      paragraph({
+        props: { textColor: 'blue', backgroundColor: 'blue' },
+        content: [{ type: 'text', text: 'hi', styles: {} }],
+      }),
+    ]);
+    expect((blocks[0] as { props?: Record<string, unknown> }).props).toEqual({
+      textColor: 'default',
+      backgroundColor: 'blue',
+    });
+  });
+
+  it('matches clashing colors case-insensitively', () => {
+    const blocks = prepareBlocks([
+      paragraph({
+        content: [
+          { type: 'text', text: 'hi', styles: { textColor: 'Red', backgroundColor: 'red' } },
+        ],
+      }),
+    ]);
+    const inline = allInline(blocks)[0] as { styles?: Record<string, unknown> };
+    expect(inline.styles?.textColor).toBe('default');
+  });
+
+  it('fixes clashes in nested children', () => {
+    const blocks = prepareBlocks([
+      paragraph({
+        content: [{ type: 'text', text: 'parent', styles: {} }],
+        children: [
+          paragraph({
+            content: [
+              {
+                type: 'text',
+                text: 'child',
+                styles: { textColor: 'green', backgroundColor: 'green' },
+              },
+            ],
+          }),
+        ],
+      }),
+    ]);
+    const child = allInline(blocks).find((item) => item.text === 'child') as {
+      styles?: Record<string, unknown>;
+    };
+    expect(child.styles?.textColor).toBe('default');
+  });
+
+  it('fixes clashes inside table cells', () => {
+    const blocks = prepareBlocks([
+      {
+        type: 'table',
+        content: {
+          type: 'tableContent',
+          rows: [
+            {
+              cells: [
+                [
+                  {
+                    type: 'text',
+                    text: 'cell',
+                    styles: { textColor: 'pink', backgroundColor: 'pink' },
+                  },
+                ],
+              ],
+            },
+          ],
+        },
+      } as unknown as Block,
+    ]);
+    const cell = allInline(blocks)[0] as { styles?: Record<string, unknown> };
+    expect(cell.styles?.textColor).toBe('default');
+  });
+
+  it('leaves contrasting color pairs untouched', () => {
+    const blocks = prepareBlocks([
+      paragraph({
+        content: [
+          { type: 'text', text: 'hi', styles: { textColor: 'red', backgroundColor: 'yellow' } },
+        ],
+      }),
+    ]);
+    const inline = allInline(blocks)[0] as { styles?: Record<string, unknown> };
+    expect(inline.styles).toEqual({ textColor: 'red', backgroundColor: 'yellow' });
+  });
+
+  it('leaves default textColor on a colored background untouched', () => {
+    const blocks = prepareBlocks([
+      paragraph({
+        content: [
+          {
+            type: 'text',
+            text: 'hi',
+            styles: { textColor: 'default', backgroundColor: 'default' },
+          },
+        ],
+      }),
+    ]);
+    const inline = allInline(blocks)[0] as { styles?: Record<string, unknown> };
+    expect(inline.styles).toEqual({ textColor: 'default', backgroundColor: 'default' });
   });
 });

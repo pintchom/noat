@@ -154,9 +154,37 @@ function sanitizeBlocks(blocks: Block[]): Block[] {
   });
 }
 
-/** Ensure every block (and child) has the id our note schema requires. */
+/**
+ * Same-colored text on a same-colored highlight is unreadable. Walk the whole
+ * block tree and, wherever an object sets textColor and backgroundColor to the
+ * same value (block props, inline styles, table cells), reset the text color
+ * to "default" — default text stays readable on every BlockNote highlight in
+ * both light and dark themes.
+ */
+function fixColorContrast(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(fixColorContrast);
+  if (typeof value !== 'object' || value === null) return value;
+  const mapped = Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      fixColorContrast(entry),
+    ])
+  );
+  const { textColor, backgroundColor } = mapped;
+  const clashes =
+    typeof textColor === 'string' &&
+    typeof backgroundColor === 'string' &&
+    textColor !== 'default' &&
+    textColor.toLowerCase() === backgroundColor.toLowerCase();
+  return clashes ? { ...mapped, textColor: 'default' } : mapped;
+}
+
+/**
+ * Prepare MCP-supplied blocks for storage: guarantee readable color contrast
+ * and ensure every block (and child) has the id our note schema requires.
+ */
 export function prepareBlocks(blocks: Block[]): Block[] {
-  return ensureIds(blocks);
+  return ensureIds(fixColorContrast(blocks) as Block[]);
 }
 
 function ensureIds(blocks: Block[]): Block[] {
