@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Notes now auto-reload after MCP/agent writes: a file watcher on the note store refreshes the sidebar, updates search indexes, and reloads open note tabs the moment a note changes on disk — no manual `NOAT: Refresh Notes` needed.
+
 ## 0.1.9 — 2026-07-16
 
 - Code blocks get real syntax highlighting (GitHub Light/Dark via Shiki) that follows the IDE's light or dark theme live, larger readable text sized to the note instead of the editor font setting, and a language picker in the top-right corner that appears instantly on hover.

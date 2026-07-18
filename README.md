@@ -51,6 +51,8 @@ A bundled MCP server exposes your notes to AI agents:
 
 Agents write plain markdown; NOAT converts it to real editor blocks. In Cursor the server registers itself automatically — no configuration.
 
+The extension watches the note store, so agent writes show up immediately: the sidebar refreshes, search indexes update, and open note tabs reload on their own.
+
 ### Git-versioned, synced to your commits
 
 `~/.noat` is its own git repository. Note edits save to disk immediately, and whenever you commit in any workspace repo, NOAT snapshots your pending note changes with a message linking the two histories:
