@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../core/editor-messages';
+import { createDocumentSync } from './document-sync';
 import { WorkspaceFileSearch, pickFileViewColumn, resolveWorkspacePath } from './workspace-files';
 
 const AUTO_SAVE_MS = 400;
@@ -54,8 +55,6 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
     };
     webview.html = this.buildHtml(webview);
 
-    // Text we last applied on behalf of the webview — used to break echo loops.
-    let lastWebviewText: string | undefined;
     let saveTimer: NodeJS.Timeout | undefined;
 
     const post = (message: HostToWebviewMessage): void => {
@@ -69,22 +68,27 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
       }, AUTO_SAVE_MS);
     };
 
-    const applyWebviewEdit = async (text: string): Promise<void> => {
-      if (text === document.getText()) return;
-      lastWebviewText = text;
-      const edit = new vscode.WorkspaceEdit();
-      const fullRange = new vscode.Range(0, 0, document.lineCount, 0);
-      edit.replace(document.uri, fullRange, text);
-      await vscode.workspace.applyEdit(edit);
-      scheduleAutoSave();
-    };
+    // Serializes webview edits and remembers which change events are echoes
+    // of our own applies. During fast typing several edits can be in flight
+    // at once; misreading one of their echoes as an external change makes the
+    // webview remount the editor, losing scroll position and selection.
+    const documentSync = createDocumentSync({
+      getText: () => document.getText(),
+      applyText: async (text) => {
+        const edit = new vscode.WorkspaceEdit();
+        const fullRange = new vscode.Range(0, 0, document.lineCount, 0);
+        edit.replace(document.uri, fullRange, text);
+        return vscode.workspace.applyEdit(edit);
+      },
+      onDidApply: scheduleAutoSave,
+    });
 
     const changeSubscription = vscode.workspace.onDidChangeTextDocument((event) => {
       if (event.document.uri.toString() !== document.uri.toString()) return;
       if (event.contentChanges.length === 0) return;
       const text = document.getText();
-      // Skip the echo of an edit the webview itself just made.
-      if (text === lastWebviewText) return;
+      // Skip echoes of edits the webview itself made.
+      if (documentSync.consumeEcho(text)) return;
       post({ type: 'update', text });
     });
 
@@ -96,7 +100,7 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
           post({ type: 'init', text: document.getText() });
           break;
         case 'edit':
-          void applyWebviewEdit(message.text);
+          documentSync.queueEdit(message.text);
           break;
         case 'searchFiles':
           void fileSearch.search(message.query).then((files) => {
