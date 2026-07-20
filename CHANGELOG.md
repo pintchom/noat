@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The `-->` → `→` smart arrow now also works inside inline code and code blocks, which TipTap's input rules skip
+- The code formatting shortcuts moved from `Cmd+Shift+S` / `Cmd+Shift+Alt+S` to `Cmd+Shift+C` / `Cmd+Shift+Alt+C` (`Ctrl` on Windows/Linux), so they no longer shadow the `Cmd+Shift+S` Search Notes keybinding while a note is focused
+
 - Code blocks and inline code no longer fall back to serif'd Courier/Times when the IDE's editor font can't be resolved inside the webview — they now use the same modern monospace fallback stack as file link chips
 
 ## 0.1.9 — 2026-07-16
