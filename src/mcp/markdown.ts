@@ -29,10 +29,11 @@ function getEditor(): ServerBlockNoteEditor {
 const ANCHOR_PATTERN = /^:\d+(?::\d+)?$/;
 
 /**
- * Replace NOAT-specific inline content (fileLink chips) with plain code-styled
- * text so the default BlockNote schema can convert blocks to markdown. A line
- * anchor right after a chip merges into the chip's path text — two adjacent
- * code spans would render as ambiguous markdown.
+ * Replace NOAT-specific inline content (fileLink and noteLink chips) with
+ * plain text so the default BlockNote schema can convert blocks to markdown.
+ * fileLink becomes code-styled text; noteLink becomes its title. A line
+ * anchor right after a fileLink chip merges into the chip's path text — two
+ * adjacent code spans would render as ambiguous markdown.
  */
 function sanitizeInline(content: unknown): unknown {
   if (!Array.isArray(content)) return content;
@@ -45,11 +46,15 @@ function sanitizeInline(content: unknown): unknown {
       type?: string;
       text?: string;
       styles?: { code?: boolean };
-      props?: { path?: string };
+      props?: { path?: string; title?: string };
       content?: unknown;
     };
     if (inline.type === 'fileLink') {
       acc.push({ type: 'text', text: inline.props?.path ?? '', styles: { code: true } });
+      return acc;
+    }
+    if (inline.type === 'noteLink') {
+      acc.push({ type: 'text', text: inline.props?.title ?? '', styles: {} });
       return acc;
     }
     if (inline.type === 'link') {

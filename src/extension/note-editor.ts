@@ -1,9 +1,20 @@
 import { randomBytes } from 'node:crypto';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
-import type { HostToWebviewMessage, WebviewToHostMessage } from '../core/editor-messages';
+import type {
+  HostToWebviewMessage,
+  NoteLinkResult,
+  WebviewToHostMessage,
+} from '../core/editor-messages';
+import { rankNoteLinks } from '../core/note-link-search';
+import { type NoteListing, listAllNotes, resolveNotePath } from '../core/note-listing';
+import { getNoatHome } from '../core/paths';
+import { repoKeyToLabel } from '../core/repo-key';
 import { WorkspaceFileSearch, pickFileViewColumn, resolveWorkspacePath } from './workspace-files';
 
 const AUTO_SAVE_MS = 400;
+const MAX_NOTE_RESULTS = 30;
 
 async function openWorkspaceFile(relativePath: string): Promise<void> {
   const uri = resolveWorkspacePath(relativePath);
@@ -19,6 +30,47 @@ async function openWorkspaceFile(relativePath: string): Promise<void> {
   } catch {
     vscode.window.showWarningMessage(`NOAT: file not found in this workspace: ${relativePath}`);
   }
+}
+
+function toNoteLinkResult(listing: NoteListing): NoteLinkResult {
+  return {
+    // Chips are stored in git-synced note files, so normalize the store's
+    // platform separators to "/" — links must survive machine moves.
+    notePath: listing.notePath.split(path.sep).join('/'),
+    title: listing.title,
+    ...(listing.icon && { icon: listing.icon }),
+    scopeLabel: listing.scope === 'global' ? 'Global' : repoKeyToLabel(listing.scope),
+  };
+}
+
+/** Search the note store for the /page picker. */
+async function searchLinkableNotes(noatHome: string, query: string): Promise<NoteLinkResult[]> {
+  const listings = await listAllNotes(noatHome);
+  return rankNoteLinks(listings, query, MAX_NOTE_RESULTS).map(toNoteLinkResult);
+}
+
+/** Follow a noteLink chip: open the linked note beside this one. */
+async function openLinkedNote(noatHome: string, notePath: string): Promise<void> {
+  const absPath = (() => {
+    try {
+      return resolveNotePath(noatHome, notePath);
+    } catch {
+      return undefined;
+    }
+  })();
+  if (
+    !absPath ||
+    !(await fs.access(absPath).then(
+      () => true,
+      () => false
+    ))
+  ) {
+    vscode.window.showWarningMessage(
+      `NOAT: linked note not found (was it deleted or moved?): ${notePath}`
+    );
+    return;
+  }
+  await vscode.commands.executeCommand('noat.openNote', absPath);
 }
 
 /**
@@ -89,6 +141,7 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
     });
 
     const fileSearch = new WorkspaceFileSearch();
+    const noatHome = getNoatHome();
 
     webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
       switch (message.type) {
@@ -105,6 +158,14 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
           break;
         case 'openFile':
           void openWorkspaceFile(message.path);
+          break;
+        case 'searchNotes':
+          void searchLinkableNotes(noatHome, message.query).then((notes) => {
+            post({ type: 'noteResults', requestId: message.requestId, notes });
+          });
+          break;
+        case 'openNote':
+          void openLinkedNote(noatHome, message.notePath);
           break;
       }
     });

@@ -11,10 +11,11 @@ function inlineText(content: unknown): string {
         type?: string;
         text?: string;
         content?: unknown;
-        props?: { path?: string };
+        props?: { path?: string; title?: string };
       };
       if (typeof inline.text === 'string') return inline.text;
       if (inline.type === 'fileLink') return inline.props?.path ?? '';
+      if (inline.type === 'noteLink') return inline.props?.title ?? '';
       if (inline.content) return inlineText(inline.content);
       return '';
     })

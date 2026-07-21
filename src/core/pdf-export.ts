@@ -69,7 +69,7 @@ function fontFor(run: Pick<InlineRun, 'bold' | 'italic' | 'code'>): string {
   return 'Helvetica';
 }
 
-/** Flatten BlockNote inline content (rich text, links, fileLink chips) into styled runs. */
+/** Flatten BlockNote inline content (rich text, links, file/note chips) into styled runs. */
 export function inlineRuns(content: unknown, inherited: Partial<InlineRun> = {}): InlineRun[] {
   if (!Array.isArray(content)) return [];
   return content.flatMap((item): InlineRun[] => {
@@ -80,7 +80,7 @@ export function inlineRuns(content: unknown, inherited: Partial<InlineRun> = {})
       href?: string;
       content?: unknown;
       styles?: Record<string, unknown>;
-      props?: { path?: string };
+      props?: { path?: string; title?: string };
     };
     if (inline.type === 'link') {
       return inlineRuns(inline.content, { ...inherited, link: inline.href, underline: true });
@@ -91,6 +91,22 @@ export function inlineRuns(content: unknown, inherited: Partial<InlineRun> = {})
         ? [
             {
               text: path,
+              bold: false,
+              italic: false,
+              code: true,
+              underline: false,
+              strike: false,
+              color: LINK_COLOR,
+            },
+          ]
+        : [];
+    }
+    if (inline.type === 'noteLink') {
+      const title = inline.props?.title ?? '';
+      return title.length > 0
+        ? [
+            {
+              text: title,
               bold: false,
               italic: false,
               code: true,

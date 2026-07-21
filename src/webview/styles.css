@@ -194,7 +194,7 @@ body {
   opacity: 0.35;
 }
 
-/* @-mention file link chips */
+/* Inline reference chips: @-mention file links and /page note links */
 .noat-file-link {
   display: inline-flex;
   align-items: center;

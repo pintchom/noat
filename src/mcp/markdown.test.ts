@@ -129,6 +129,27 @@ describe('markdownToBlocks fileLink promotion', () => {
   });
 });
 
+describe('blocksToMarkdown noteLink chips', () => {
+  it('renders a noteLink chip as its title text', async () => {
+    const blocks = [
+      {
+        id: 'b1',
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'See ', styles: {} },
+          {
+            type: 'noteLink',
+            props: { notePath: 'global/Ideas.noat.json', title: 'Ideas', icon: '' },
+          },
+          { type: 'text', text: ' for context.', styles: {} },
+        ],
+      },
+    ] as unknown as NoteFile['blocks'];
+    const markdown = await blocksToMarkdown(blocks);
+    expect(markdown).toContain('See Ideas for context.');
+  });
+});
+
 describe('prepareBlocks color contrast', () => {
   const paragraph = (overrides: Record<string, unknown>): Block =>
     ({ type: 'paragraph', ...overrides }) as unknown as Block;

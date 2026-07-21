@@ -6,19 +6,23 @@ import {
   defaultBlockSpecs,
   defaultInlineContentSpecs,
 } from '@blocknote/core';
+import { SuggestionMenu, filterSuggestionItems } from '@blocknote/core/extensions';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
   type DefaultReactSuggestionItem,
   SuggestionMenuController,
+  getDefaultReactSlashMenuItems,
   useCreateBlockNote,
 } from '@blocknote/react';
 import { createParser } from 'prosemirror-highlight/shiki';
 import { type KeyboardEvent, useEffect, useState } from 'react';
-import { noteIconForStorage } from '../core/display-icons';
+import { NOTE_ICON, noteIconForStorage, resolveNoteIcon } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
+import { NoteLink } from './NoteLink';
 import { searchWorkspaceFiles } from './file-search-client';
+import { searchNotes } from './note-search-client';
 import { smartArrows } from './smart-arrows';
 import '@blocknote/mantine/style.css';
 
@@ -55,8 +59,13 @@ const schema = BlockNoteSchema.create({
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,
     fileLink: FileLink,
+    noteLink: NoteLink,
   },
 });
+
+// Trigger for the /page note picker. Opened programmatically (never typed),
+// mirroring how BlockNote's own Emoji slash item opens the ":" picker.
+const NOTE_PICKER_TRIGGER = '※';
 
 function readDarkTheme(): boolean {
   return (
@@ -112,6 +121,45 @@ export function NoteEditor({
       subtext: file,
       onItemClick: () => {
         editor.insertInlineContent([{ type: 'fileLink', props: { path: file } }, ' ']);
+      },
+    }));
+
+  // Notion-style "/page": the slash item opens a second suggestion menu that
+  // searches notes and inserts a noteLink chip for the picked one.
+  const pageLinkItem: DefaultReactSuggestionItem = {
+    title: 'Page',
+    subtext: 'Link to another note',
+    aliases: ['page', 'note', 'link', 'reference', 'noat'],
+    group: 'Notes',
+    icon: <span>{NOTE_ICON}</span>,
+    onItemClick: () => {
+      editor.getExtension(SuggestionMenu)?.openSuggestionMenu(NOTE_PICKER_TRIGGER, {
+        deleteTriggerCharacter: true,
+        ignoreQueryLength: true,
+      });
+    },
+  };
+
+  const getSlashMenuItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
+    filterSuggestionItems([...getDefaultReactSlashMenuItems(editor), pageLinkItem], query);
+
+  const getNoteItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
+    (await searchNotes(query)).map((linked) => ({
+      title: linked.title || 'Untitled',
+      subtext: linked.scopeLabel,
+      icon: <span>{resolveNoteIcon(linked.icon)}</span>,
+      onItemClick: () => {
+        editor.insertInlineContent([
+          {
+            type: 'noteLink',
+            props: {
+              notePath: linked.notePath,
+              title: linked.title,
+              icon: linked.icon ?? '',
+            },
+          },
+          ' ',
+        ]);
       },
     }));
 
@@ -171,9 +219,22 @@ export function NoteEditor({
         <BlockNoteView
           editor={editor}
           theme={isDark ? 'dark' : 'light'}
+          slashMenu={false}
           onChange={() => emit(title, icon)}
         >
           <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
+          {/* Replaces the default slash menu to add the "Page" item; the
+              shouldOpen guard matches BlockNote's default (no menu inside
+              table cells). */}
+          <SuggestionMenuController
+            triggerCharacter="/"
+            getItems={getSlashMenuItems}
+            shouldOpen={(tr) => !tr.selection.$from.parent.type.isInGroup('tableContent')}
+          />
+          <SuggestionMenuController
+            triggerCharacter={NOTE_PICKER_TRIGGER}
+            getItems={getNoteItems}
+          />
         </BlockNoteView>
       </div>
     </div>
