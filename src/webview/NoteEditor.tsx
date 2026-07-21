@@ -173,13 +173,13 @@ export function NoteEditor({
     }
   };
 
-  // Slack-style code formatting: Mod+Shift+S toggles inline code on the
-  // selection, Mod+Shift+Alt+S toggles the selected blocks into a code block.
-  // Runs in the capture phase because Tiptap's strike extension binds
-  // Mod+Shift+S inside ProseMirror and would otherwise consume the event.
-  // event.code is used because Alt+S produces a different event.key on macOS.
+  // Slack-style code formatting: Mod+Shift+C toggles inline code on the
+  // selection, Mod+Shift+Alt+C toggles the selected blocks into a code block.
+  // Runs in the capture phase so nothing inside ProseMirror can consume the
+  // event first. event.code is used because Alt+C produces a different
+  // event.key on macOS.
   const onFormattingKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.code !== 'KeyS') return;
+    if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.code !== 'KeyC') return;
     event.preventDefault();
     event.stopPropagation();
     if (event.altKey) {
