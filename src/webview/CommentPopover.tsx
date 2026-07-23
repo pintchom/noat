@@ -78,16 +78,20 @@ export function CommentPopover({
           {comment.text}
         </button>
       )}
-      <div className="noat-comment-actions">
-        <button
-          type="button"
-          className="noat-comment-resolve"
-          title="Resolve (removes the comment and its highlight)"
-          onClick={onResolve}
-        >
-          ✓ Resolve
-        </button>
-      </div>
+      {/* Resolving is a review action, not a composing one — while typing it
+          would only invite stray clicks. */}
+      {!editing && (
+        <div className="noat-comment-actions">
+          <button
+            type="button"
+            className="noat-comment-resolve"
+            title="Resolve (removes the comment and its highlight)"
+            onClick={onResolve}
+          >
+            ✓ Resolve
+          </button>
+        </div>
+      )}
     </div>
   );
 }
