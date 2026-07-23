@@ -6,7 +6,11 @@ import {
   defaultBlockSpecs,
   defaultInlineContentSpecs,
 } from '@blocknote/core';
-import { SuggestionMenu, filterSuggestionItems } from '@blocknote/core/extensions';
+import {
+  SuggestionMenu,
+  filterSuggestionItems,
+  insertOrUpdateBlockForSlashMenu,
+} from '@blocknote/core/extensions';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
   type DefaultReactSuggestionItem,
@@ -18,6 +22,7 @@ import { createParser } from 'prosemirror-highlight/shiki';
 import { type KeyboardEvent, useEffect, useState } from 'react';
 import { NOTE_ICON, noteIconForStorage, resolveNoteIcon } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
+import { Comment } from './Comment';
 import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
 import { NoteLink } from './NoteLink';
@@ -55,6 +60,7 @@ const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     codeBlock,
+    comment: Comment,
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,
@@ -140,8 +146,24 @@ export function NoteEditor({
     },
   };
 
+  // Review-feedback callout: converts the current block (or inserts below a
+  // non-empty one), matching how the default slash items place new blocks.
+  const commentItem: DefaultReactSuggestionItem = {
+    title: 'Comment',
+    subtext: 'Feedback on the content above',
+    aliases: ['comment', 'feedback', 'suggestion', 'review'],
+    group: 'Notes',
+    icon: <span>💬</span>,
+    onItemClick: () => {
+      insertOrUpdateBlockForSlashMenu(editor, { type: 'comment' });
+    },
+  };
+
   const getSlashMenuItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
-    filterSuggestionItems([...getDefaultReactSlashMenuItems(editor), pageLinkItem], query);
+    filterSuggestionItems(
+      [...getDefaultReactSlashMenuItems(editor), pageLinkItem, commentItem],
+      query
+    );
 
   const getNoteItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
     (await searchNotes(query)).map((linked) => ({

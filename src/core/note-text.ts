@@ -69,7 +69,14 @@ export interface NoteSection {
 }
 
 export type SectionSlice =
-  | { kind: 'match'; heading: string; blocks: NoteFile['blocks'] }
+  | {
+      kind: 'match';
+      heading: string;
+      blocks: NoteFile['blocks'];
+      /** Top-level block range of the section: [start, end). */
+      start: number;
+      end: number;
+    }
   | { kind: 'ambiguous'; candidates: string[] }
   | { kind: 'not-found'; headings: string[] };
 
@@ -105,7 +112,58 @@ export function sliceSection(blocks: NoteFile['blocks'], section: string): Secti
   const end = headings.find(
     (heading) => heading.index > start.index && heading.level <= start.level
   );
-  return { kind: 'match', heading: start.text, blocks: blocks.slice(start.index, end?.index) };
+  const endIndex = end?.index ?? blocks.length;
+  return {
+    kind: 'match',
+    heading: start.text,
+    blocks: blocks.slice(start.index, endIndex),
+    start: start.index,
+    end: endIndex,
+  };
+}
+
+// Anchor snippets exist to locate a comment, not to re-read the note — cap
+// them so a long paragraph doesn't defeat the point of a comments-only read.
+const ANCHOR_MAX_CHARS = 160;
+
+export interface NoteComment {
+  /** Heading of the section the comment falls under ('' before any heading). */
+  section: string;
+  /** Text of the block just above the comment — its anchor in the document. */
+  after: string;
+  text: string;
+}
+
+/**
+ * Collect review-comment blocks in document order, each with enough context
+ * (section heading + the text of the preceding block) for a reader who
+ * already knows the note to locate it without fetching the content.
+ */
+export function extractComments(blocks: NoteFile['blocks']): NoteComment[] {
+  const comments: NoteComment[] = [];
+  let section = '';
+  let previous = '';
+
+  const walk = (tree: Block[]): void => {
+    for (const block of tree) {
+      if (block.type === 'comment') {
+        comments.push({ section, after: previous, text: blockText(block).join(' ').trim() });
+        continue;
+      }
+      if (block.type === 'heading') {
+        section = blockText(block).join(' ').trim();
+        previous = section;
+        continue;
+      }
+      const ownText = (blockText(block)[0] ?? '').trim().slice(0, ANCHOR_MAX_CHARS);
+      if (ownText.length > 0) previous = ownText;
+      const children = (block as { children?: Block[] }).children;
+      if (Array.isArray(children)) walk(children);
+    }
+  };
+
+  walk(blocks);
+  return comments;
 }
 
 /** Split a note into heading-delimited sections for embedding. */

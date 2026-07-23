@@ -150,6 +150,50 @@ describe('blocksToMarkdown noteLink chips', () => {
   });
 });
 
+describe('comment block round-trip', () => {
+  const comment = (text: string): Block =>
+    ({
+      id: 'c1',
+      type: 'comment',
+      props: {},
+      content: [{ type: 'text', text, styles: {} }],
+    }) as unknown as Block;
+
+  it('renders a comment block as a marker-prefixed quote', async () => {
+    const markdown = await blocksToMarkdown([comment('flag feels like overkill')]);
+    expect(markdown).toContain('> 💬 flag feels like overkill');
+  });
+
+  it('promotes a marker-prefixed quote to a comment block', async () => {
+    const blocks = await markdownToBlocks('> 💬 can we just ship it?');
+    expect(blocks[0]?.type).toBe('comment');
+    expect((blocks[0] as { props?: unknown }).props).toEqual({});
+    const inline = allInline(blocks);
+    expect(inline[0]?.text).toBe('can we just ship it?');
+  });
+
+  it('leaves plain quotes untouched', async () => {
+    const blocks = await markdownToBlocks('> just a quote');
+    expect(blocks[0]?.type).toBe('quote');
+  });
+
+  it('round-trips a comment losslessly', async () => {
+    const original = [comment('tighten this section')];
+    const reparsed = await markdownToBlocks(await blocksToMarkdown(original));
+    expect(reparsed[0]?.type).toBe('comment');
+    expect(allInline(reparsed)[0]?.text).toBe('tighten this section');
+  });
+
+  it('round-trips a fileLink chip inside a comment', async () => {
+    const original = await markdownToBlocks('> 💬 move this into `src/core/store.ts`');
+    expect(original[0]?.type).toBe('comment');
+    expect(chips(original).map((chip) => chip.props?.path)).toEqual(['src/core/store.ts']);
+    const reparsed = await markdownToBlocks(await blocksToMarkdown(original));
+    expect(reparsed[0]?.type).toBe('comment');
+    expect(chips(reparsed).map((chip) => chip.props?.path)).toEqual(['src/core/store.ts']);
+  });
+});
+
 describe('prepareBlocks color contrast', () => {
   const paragraph = (overrides: Record<string, unknown>): Block =>
     ({ type: 'paragraph', ...overrides }) as unknown as Block;

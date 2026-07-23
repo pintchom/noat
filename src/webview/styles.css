@@ -227,6 +227,32 @@ body {
   font-size: 0.85em;
 }
 
+/* Review-comment callouts (inserted via /comment). The amber accent keeps
+   its own fallback because editorWarning-foreground varies wildly between
+   themes; the translucent background reads on light and dark alike. */
+.noat-comment {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border-left: 3px solid var(--vscode-editorWarning-foreground, #d9a441);
+  border-radius: 4px;
+  background: rgba(214, 160, 60, 0.12);
+}
+
+.noat-comment-icon {
+  flex: none;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.noat-comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Let the editor sit on the IDE background instead of BlockNote's own. */
 .bn-editor {
   background: transparent !important;
