@@ -91,6 +91,10 @@ const schema = BlockNoteSchema.create({
 // mirroring how BlockNote's own Emoji slash item opens the ":" picker.
 const NOTE_PICKER_TRIGGER = '※';
 
+// Just enough delay for the pointer to travel from a comment highlight into
+// its popover without the card closing mid-way.
+const POPOVER_HIDE_GRACE_MS = 120;
+
 function readDarkTheme(): boolean {
   return (
     document.body.classList.contains('vscode-dark') ||
@@ -178,7 +182,7 @@ export function NoteEditor({
     cancelHide();
     hideTimer.current = window.setTimeout(() => {
       setPopover((current) => (current?.editing ? current : null));
-    }, 250);
+    }, POPOVER_HIDE_GRACE_MS);
   };
 
   const openPopover = (id: string, editing: boolean): void => {
@@ -231,8 +235,16 @@ export function NoteEditor({
   };
 
   const onEditorMouseOver = (event: ReactMouseEvent<HTMLDivElement>): void => {
-    const span = (event.target as HTMLElement).closest?.('[data-noat-comment]');
-    if (!span) return;
+    const target = event.target as HTMLElement;
+    if (target.closest?.('.noat-comment-popover')) return;
+    const span = target.closest?.('[data-noat-comment]');
+    if (!span) {
+      // Pointer over other content: close a lingering card. This also covers
+      // highlights whose DOM node an editor re-render replaced mid-hover —
+      // their mouseout never fires, so the mouseout path alone can miss it.
+      if (popover && !popover.editing) scheduleHide();
+      return;
+    }
     cancelHide();
     const id = span.getAttribute('data-noat-comment');
     if (!id || popover?.id === id || popover?.editing) return;
