@@ -29,6 +29,19 @@ function getEditor(): ServerBlockNoteEditor {
 const ANCHOR_PATTERN = /^:\d+(?::\d+)?$/;
 
 /**
+ * commentRef styles anchor inline comments to text runs. The default schema
+ * doesn't know them, so they're dropped before conversion — the comment
+ * entries themselves live in the note file, not in the text.
+ */
+function dropCommentRef(item: unknown): unknown {
+  if (typeof item !== 'object' || item === null) return item;
+  const styles = (item as { styles?: Record<string, unknown> }).styles;
+  if (!styles || !('commentRef' in styles)) return item;
+  const { commentRef: _dropped, ...rest } = styles;
+  return { ...item, styles: rest };
+}
+
+/**
  * Replace NOAT-specific inline content (fileLink and noteLink chips) with
  * plain text so the default BlockNote schema can convert blocks to markdown.
  * fileLink becomes code-styled text; noteLink becomes its title. A line
@@ -37,7 +50,7 @@ const ANCHOR_PATTERN = /^:\d+(?::\d+)?$/;
  */
 function sanitizeInline(content: unknown): unknown {
   if (!Array.isArray(content)) return content;
-  return content.reduce<unknown[]>((acc, item, index) => {
+  return content.map(dropCommentRef).reduce<unknown[]>((acc, item, index) => {
     if (typeof item !== 'object' || item === null) {
       acc.push(item);
       return acc;

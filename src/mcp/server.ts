@@ -3,7 +3,13 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import type { NoteFile } from '../core/note';
 import { listAllNotes, readNoteByPath } from '../core/note-listing';
-import { blocksToSections, extractComments, sliceSection } from '../core/note-text';
+import {
+  blocksToSections,
+  extractCommentAnchors,
+  extractComments,
+  sliceSection,
+  stripCommentRef,
+} from '../core/note-text';
 import { getNoatHome } from '../core/paths';
 import { SearchEngine } from '../core/search/engine';
 import { initStore } from '../core/store';
@@ -49,14 +55,21 @@ starting with 💬 ("> 💬 like this"), and writing that form creates one.
 
 ## Review workflow
 
-When asked to address feedback, suggestions, or comments on a note: call
-read_comments (each comment comes with its section and the text it sits
-under), act on each one, and rewrite only the affected sections with
-replace_note_section — deleting the comment blocks you addressed as part of
-the rewrite. Leave comments you did not address in place. Do not re-read or
-rewrite the whole note unless a comment references content you do not
-recognize. To ask the user something or explain a pushback, add a "> 💬 ..."
-comment of your own.
+The user reviews notes by attaching comments, in two forms:
+- Inline comments: anchored to highlighted text. read_comments returns each
+  with an id, the highlighted text ("anchor"), and its section. Highlights
+  are invisible in markdown renderings, and rewriting anchored text detaches
+  the comment (it stays listed as anchored: false until resolved).
+- Comment blocks: "> 💬 ..." callouts in the note's flow, annotating the
+  content just above them.
+
+When asked to address feedback: call read_comments, act on each comment,
+then close what you addressed — resolve_comment (by id) for inline comments,
+and for comment blocks delete them while rewriting their section with
+replace_note_section. Leave comments you did not address open. Do not
+re-read or rewrite the whole note unless a comment references content you do
+not recognize. To ask the user something or explain a pushback, add a
+"> 💬 ..." comment of your own.
 
 ## Conventions
 
@@ -113,14 +126,23 @@ content just above it): { "type": "comment", "props": {}, "content": [ ...inline
 
 ## Review workflow
 
-When asked to address feedback, suggestions, or comments on a note: call
-read_comments (each comment comes with its section and the text it sits
-under), act on each one, and rewrite only the affected sections with
-replace_note_section — deleting the comment blocks you addressed as part of
-the rewrite. Leave comments you did not address in place. Do not re-read or
-rewrite the whole note unless a comment references content you do not
-recognize. To ask the user something or explain a pushback, add a comment
-block of your own.
+The user reviews notes by attaching comments, in two forms:
+- Inline comments: anchored to text runs via a "commentRef" style whose
+  string value is the comment id; the comment entries live in the note
+  file's top-level "comments" field. read_comments returns each with its id,
+  highlighted text ("anchor"), and section. Preserve commentRef styles when
+  editing blocks; dropping styled text detaches its comment (listed as
+  anchored: false until resolved).
+- Comment blocks: "comment" blocks in the note's flow, annotating the
+  content just above them.
+
+When asked to address feedback: call read_comments, act on each comment,
+then close what you addressed — resolve_comment (by id) for inline comments,
+and for comment blocks delete them while rewriting their section with
+replace_note_section. Leave comments you did not address open. Do not
+re-read or rewrite the whole note unless a comment references content you do
+not recognize. To ask the user something or explain a pushback, add a
+comment block of your own.
 
 Study an existing note with read_note before writing richly formatted content
 so you match the block types and prop values the editor expects.
@@ -489,16 +511,63 @@ async function main(): Promise<void> {
     'read_comments',
     {
       description:
-        "Read only a note's review comments: each comment block with the section heading it falls under and the text of the block just above it. Far cheaper than read_note when processing feedback on content you already know.",
+        'Read only a note\'s review comments, without the note content. Inline comments (kind "inline") carry an id, the highlighted text they annotate, and their section — resolve them with resolve_comment once addressed. Comment blocks (kind "block") carry their section and the text just above them — delete them by rewriting their section. Far cheaper than read_note when processing feedback on content you already know.',
       inputSchema: { notePath: z.string() },
     },
     async ({ notePath }) => {
       const note = await readNoteByPath(noatHome, notePath);
+      const anchors = extractCommentAnchors(note.blocks);
+      const inline = (note.comments ?? []).map((comment) => {
+        const anchor = anchors.get(comment.id);
+        return {
+          kind: 'inline' as const,
+          id: comment.id,
+          // An unanchored comment's highlight was lost to a text rewrite;
+          // the feedback still stands until explicitly resolved.
+          ...(anchor
+            ? { section: anchor.section, anchor: anchor.anchor, anchored: true }
+            : { anchored: false }),
+          text: comment.text,
+          createdAt: comment.createdAt,
+        };
+      });
+      const blockComments = extractComments(note.blocks).map((comment) => ({
+        kind: 'block' as const,
+        ...comment,
+      }));
       return json({
         notePath,
         updatedAt: note.updatedAt,
-        comments: extractComments(note.blocks),
+        comments: [...inline, ...blockComments],
       });
+    }
+  );
+
+  server.registerTool(
+    'resolve_comment',
+    {
+      description:
+        'Resolve an inline comment by id once its feedback has been addressed: deletes the comment and strips its highlight from the text. Not for kind "block" comments — delete those by rewriting their section.',
+      inputSchema: { notePath: z.string(), commentId: z.string() },
+    },
+    async ({ notePath, commentId }) => {
+      const note = await readNoteByPath(noatHome, notePath);
+      const existing = note.comments ?? [];
+      if (!existing.some((comment) => comment.id === commentId)) {
+        return json({
+          error: `No inline comment with id "${commentId}"`,
+          commentIds: existing.map((comment) => comment.id),
+        });
+      }
+      const comments = existing.filter((comment) => comment.id !== commentId);
+      const blocks = stripCommentRef(note.blocks, commentId);
+      await writeNoteFile(noatHome, notePath, {
+        ...note,
+        blocks,
+        comments: comments.length > 0 ? comments : undefined,
+      });
+      await engine.updateNote(notePath);
+      return json({ resolved: commentId, remaining: comments.length });
     }
   );
 

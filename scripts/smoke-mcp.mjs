@@ -269,6 +269,43 @@ try {
   }
   console.log('review loop (comment -> read_comments -> section rewrite): ok');
 
+  // Inline comments: the editor writes highlight styles + a comments field
+  // straight into the note file — simulate that on disk, then check
+  // read_comments surfaces the anchor and resolve_comment clears both the
+  // entry and its highlight.
+  const noteFsPath = path.join(noatHome, 'notes', notePath);
+  const onDisk = JSON.parse(fs.readFileSync(noteFsPath, 'utf8'));
+  onDisk.blocks.push({
+    id: 'inline-target',
+    type: 'paragraph',
+    props: {},
+    content: [{ type: 'text', text: 'flagged text', styles: { commentRef: 'ic1' } }],
+    children: [],
+  });
+  onDisk.comments = [{ id: 'ic1', text: 'is this needed?', createdAt: new Date().toISOString() }];
+  fs.writeFileSync(noteFsPath, JSON.stringify(onDisk));
+  const inlineComments = toolText(
+    await request('tools/call', { name: 'read_comments', arguments: { notePath } })
+  ).comments;
+  const inlineEntry = inlineComments.find((comment) => comment.kind === 'inline');
+  if (!inlineEntry || inlineEntry.anchor !== 'flagged text' || inlineEntry.anchored !== true) {
+    throw new Error(`inline comment not surfaced: ${JSON.stringify(inlineComments)}`);
+  }
+  const resolved = toolText(
+    await request('tools/call', {
+      name: 'resolve_comment',
+      arguments: { notePath, commentId: 'ic1' },
+    })
+  );
+  if (resolved.resolved !== 'ic1') {
+    throw new Error(`resolve_comment failed: ${JSON.stringify(resolved)}`);
+  }
+  const afterResolve = JSON.parse(fs.readFileSync(noteFsPath, 'utf8'));
+  if (afterResolve.comments || JSON.stringify(afterResolve.blocks).includes('commentRef')) {
+    throw new Error('resolve_comment left the entry or highlight behind');
+  }
+  console.log('inline comment loop (read_comments -> resolve_comment): ok');
+
   // Notes written after the keyword index was built must still be findable.
   const late = await request('tools/call', {
     name: 'create_note',

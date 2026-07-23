@@ -253,6 +253,82 @@ body {
   min-width: 0;
 }
 
+/* Inline-comment highlights (applied via the selection toolbar's 💬) and the
+   hover popover showing the comment. Same amber family as the callouts. */
+.noat-comment-ref {
+  background: rgba(214, 160, 60, 0.28);
+  border-bottom: 1.5px solid rgba(214, 160, 60, 0.85);
+  cursor: pointer;
+}
+
+.noat-comment-popover {
+  position: fixed;
+  z-index: 30;
+  width: 280px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 8px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: 0.85rem;
+  box-shadow: 0 6px 18px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+}
+
+.noat-comment-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 7px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 4px;
+  outline: none;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  resize: vertical;
+}
+
+.noat-comment-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.noat-comment-text {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.noat-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.noat-comment-resolve {
+  padding: 2px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  font: inherit;
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.noat-comment-resolve:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.15));
+}
+
 /* Let the editor sit on the IDE background instead of BlockNote's own. */
 .bn-editor {
   background: transparent !important;

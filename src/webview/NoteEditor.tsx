@@ -5,6 +5,7 @@ import {
   createCodeBlockSpec,
   defaultBlockSpecs,
   defaultInlineContentSpecs,
+  defaultStyleSpecs,
 } from '@blocknote/core';
 import {
   SuggestionMenu,
@@ -22,10 +23,19 @@ import {
   useCreateBlockNote,
 } from '@blocknote/react';
 import { createParser } from 'prosemirror-highlight/shiki';
-import { type KeyboardEvent, useEffect, useState } from 'react';
+import {
+  type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { NOTE_ICON, noteIconForStorage, resolveNoteIcon } from '../core/display-icons';
-import { type NoteFile, serializeNote } from '../core/note';
+import { type InlineComment, type NoteFile, serializeNote } from '../core/note';
+import { stripCommentRef } from '../core/note-text';
 import { Comment } from './Comment';
+import { CommentPopover } from './CommentPopover';
+import { CommentRef } from './CommentRef';
 import { CommentToolbarButton } from './CommentToolbarButton';
 import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
@@ -71,6 +81,10 @@ const schema = BlockNoteSchema.create({
     fileLink: FileLink,
     noteLink: NoteLink,
   },
+  styleSpecs: {
+    ...defaultStyleSpecs,
+    commentRef: CommentRef,
+  },
 });
 
 // Trigger for the /page note picker. Opened programmatically (never typed),
@@ -107,6 +121,18 @@ export function NoteEditor({
   const [icon, setIcon] = useState(noteIconForStorage(note.icon));
   const isDark = useVsCodeDarkTheme();
 
+  // Inline comments: entries live in the note file next to blocks; their
+  // highlights are commentRef styles in the text. The ref mirrors the state
+  // so emit (called from stale closures) always serializes the latest list.
+  const [comments, setComments] = useState<InlineComment[]>(note.comments ?? []);
+  const commentsRef = useRef(comments);
+  const [popover, setPopover] = useState<{
+    id: string;
+    editing: boolean;
+    rect: { left: number; bottom: number };
+  } | null>(null);
+  const hideTimer = useRef<number | undefined>(undefined);
+
   const editor = useCreateBlockNote({
     schema,
     extensions: [smartArrows],
@@ -121,8 +147,100 @@ export function NoteEditor({
         icon: nextIcon,
         updatedAt: new Date().toISOString(),
         blocks: editor.document as unknown as NoteFile['blocks'],
+        comments: commentsRef.current.length > 0 ? commentsRef.current : undefined,
       })
     );
+  };
+
+  const updateComments = (next: InlineComment[]): void => {
+    commentsRef.current = next;
+    setComments(next);
+  };
+
+  /** Remove one comment's highlight from every block that carries it. */
+  const stripHighlight = (id: string): void => {
+    const current = editor.document as unknown as NoteFile['blocks'];
+    const cleaned = stripCommentRef(current, id);
+    cleaned.forEach((block, index) => {
+      const original = current[index];
+      if (!original || block === original) return;
+      const children = (block as { children?: unknown }).children;
+      editor.updateBlock(original.id, {
+        content: (block as { content?: unknown }).content,
+        ...(Array.isArray(children) && { children }),
+      } as unknown as PartialBlock);
+    });
+  };
+
+  const cancelHide = (): void => window.clearTimeout(hideTimer.current);
+
+  const scheduleHide = (): void => {
+    cancelHide();
+    hideTimer.current = window.setTimeout(() => {
+      setPopover((current) => (current?.editing ? current : null));
+    }, 250);
+  };
+
+  const openPopover = (id: string, editing: boolean): void => {
+    cancelHide();
+    // The highlight span may not be in the DOM yet right after addStyles.
+    requestAnimationFrame(() => {
+      const span = document.querySelector(`[data-noat-comment="${id}"]`);
+      const rect = span?.getBoundingClientRect();
+      if (rect) setPopover({ id, editing, rect: { left: rect.left, bottom: rect.bottom } });
+    });
+  };
+
+  const startComment = (id: string): void => {
+    updateComments([...commentsRef.current, { id, text: '', createdAt: new Date().toISOString() }]);
+    openPopover(id, true);
+  };
+
+  const cancelComment = (id: string): void => {
+    const entry = commentsRef.current.find((comment) => comment.id === id);
+    // Abandoning a comment that never got text undoes it entirely; canceling
+    // an edit of an existing comment just closes the card.
+    if (entry && entry.text.trim().length === 0) {
+      updateComments(commentsRef.current.filter((comment) => comment.id !== id));
+      stripHighlight(id);
+      emit(title, icon);
+    }
+    setPopover(null);
+  };
+
+  const saveComment = (id: string, text: string): void => {
+    const trimmed = text.trim();
+    if (trimmed.length === 0) {
+      cancelComment(id);
+      return;
+    }
+    updateComments(
+      commentsRef.current.map((comment) =>
+        comment.id === id ? { ...comment, text: trimmed } : comment
+      )
+    );
+    emit(title, icon);
+    setPopover(null);
+  };
+
+  const resolveComment = (id: string): void => {
+    updateComments(commentsRef.current.filter((comment) => comment.id !== id));
+    stripHighlight(id);
+    emit(title, icon);
+    setPopover(null);
+  };
+
+  const onEditorMouseOver = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    const span = (event.target as HTMLElement).closest?.('[data-noat-comment]');
+    if (!span) return;
+    cancelHide();
+    const id = span.getAttribute('data-noat-comment');
+    if (!id || popover?.id === id || popover?.editing) return;
+    openPopover(id, false);
+  };
+
+  const onEditorMouseOut = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if ((event.target as HTMLElement).closest?.('[data-noat-comment]')) scheduleHide();
   };
 
   const getFileItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
@@ -241,7 +359,12 @@ export function NoteEditor({
           }}
         />
       </div>
-      <div onKeyDownCapture={onFormattingKeyDown}>
+      {/* biome-ignore lint/a11y/useKeyWithMouseEvents: pointer-only hover reveal; comments are reachable via the selection toolbar for keyboard flows */}
+      <div
+        onKeyDownCapture={onFormattingKeyDown}
+        onMouseOver={onEditorMouseOver}
+        onMouseOut={onEditorMouseOut}
+      >
         <BlockNoteView
           editor={editor}
           theme={isDark ? 'dark' : 'light'}
@@ -256,7 +379,7 @@ export function NoteEditor({
             formattingToolbar={() => (
               <FormattingToolbar>
                 {getFormattingToolbarItems()}
-                <CommentToolbarButton key="commentButton" />
+                <CommentToolbarButton key="commentButton" onAddComment={startComment} />
               </FormattingToolbar>
             )}
           />
@@ -274,6 +397,23 @@ export function NoteEditor({
             getItems={getNoteItems}
           />
         </BlockNoteView>
+        {popover &&
+          (() => {
+            const active = comments.find((comment) => comment.id === popover.id);
+            if (!active) return null;
+            return (
+              <CommentPopover
+                comment={active}
+                editing={popover.editing}
+                anchorRect={popover.rect}
+                onStartEdit={() => setPopover({ ...popover, editing: true })}
+                onSave={(text) => saveComment(popover.id, text)}
+                onCancel={() => cancelComment(popover.id)}
+                onResolve={() => resolveComment(popover.id)}
+                onHoverChange={(hovering) => (hovering ? cancelHide() : scheduleHide())}
+              />
+            );
+          })()}
       </div>
     </div>
   );

@@ -184,6 +184,22 @@ describe('comment block round-trip', () => {
     expect(allInline(reparsed)[0]?.text).toBe('tighten this section');
   });
 
+  it('drops commentRef styles so highlighted text converts cleanly', async () => {
+    const blocks = [
+      {
+        id: 'p1',
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'ship ', styles: {} },
+          { type: 'text', text: 'the flag', styles: { commentRef: 'c1', bold: true } },
+        ],
+      },
+    ] as unknown as NoteFile['blocks'];
+    const markdown = await blocksToMarkdown(blocks);
+    expect(markdown).toContain('ship **the flag**');
+    expect(markdown).not.toContain('commentRef');
+  });
+
   it('round-trips a fileLink chip inside a comment', async () => {
     const original = await markdownToBlocks('> 💬 move this into `src/core/store.ts`');
     expect(original[0]?.type).toBe('comment');

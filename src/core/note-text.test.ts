@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { NoteFile } from './note';
-import { blocksToPlainText, blocksToSections, extractComments, sliceSection } from './note-text';
+import {
+  blocksToPlainText,
+  blocksToSections,
+  extractCommentAnchors,
+  extractComments,
+  sliceSection,
+  stripCommentRef,
+} from './note-text';
 
 type Blocks = NoteFile['blocks'];
 
@@ -160,6 +167,123 @@ describe('extractComments', () => {
 
   it('returns an empty list for a note without comments', () => {
     expect(extractComments(blocks)).toEqual([]);
+  });
+});
+
+describe('extractCommentAnchors', () => {
+  const run = (text: string, styles: Record<string, unknown> = {}) => ({
+    type: 'text',
+    text,
+    styles,
+  });
+
+  it('maps ids to highlighted text with their section', () => {
+    const withHighlights: Blocks = [
+      heading('h1', 2, '1. Setup'),
+      {
+        id: 'p1',
+        type: 'paragraph',
+        content: [run('use '), run('the flag', { commentRef: 'c1' }), run(' here')],
+      },
+    ];
+    expect(extractCommentAnchors(withHighlights).get('c1')).toEqual({
+      section: '1. Setup',
+      anchor: 'the flag',
+    });
+  });
+
+  it('concatenates split runs sharing an id', () => {
+    const withHighlights: Blocks = [
+      {
+        id: 'p1',
+        type: 'paragraph',
+        content: [run('the ', { commentRef: 'c1' }), run('flag', { commentRef: 'c1', bold: true })],
+      },
+    ];
+    expect(extractCommentAnchors(withHighlights).get('c1')?.anchor).toBe('the flag');
+  });
+
+  it('finds highlights inside table cells', () => {
+    const withTable: Blocks = [
+      {
+        id: 't1',
+        type: 'table',
+        content: {
+          type: 'tableContent',
+          rows: [{ cells: [[run('cell text', { commentRef: 'c1' })]] }],
+        },
+      },
+    ];
+    expect(extractCommentAnchors(withTable).get('c1')?.anchor).toBe('cell text');
+  });
+
+  it('returns an empty map when nothing is highlighted', () => {
+    expect(extractCommentAnchors(blocks).size).toBe(0);
+  });
+});
+
+describe('stripCommentRef', () => {
+  const run = (text: string, styles: Record<string, unknown> = {}) => ({
+    type: 'text',
+    text,
+    styles,
+  });
+
+  it('removes only the matching id and keeps other styles', () => {
+    const withHighlights: Blocks = [
+      {
+        id: 'p1',
+        type: 'paragraph',
+        content: [
+          run('keep', { commentRef: 'other' }),
+          run('drop', { commentRef: 'c1', bold: true }),
+        ],
+      },
+    ];
+    const stripped = stripCommentRef(withHighlights, 'c1');
+    const content = (stripped[0] as { content?: Array<{ styles?: Record<string, unknown> }> })
+      .content;
+    expect(content?.[0]?.styles).toEqual({ commentRef: 'other' });
+    expect(content?.[1]?.styles).toEqual({ bold: true });
+  });
+
+  it('keeps object identity for untouched blocks', () => {
+    const withHighlights: Blocks = [
+      paragraph('p0', 'plain'),
+      {
+        id: 'p1',
+        type: 'paragraph',
+        content: [run('drop', { commentRef: 'c1' })],
+      },
+    ];
+    const stripped = stripCommentRef(withHighlights, 'c1');
+    expect(stripped[0]).toBe(withHighlights[0]);
+    expect(stripped[1]).not.toBe(withHighlights[1]);
+  });
+
+  it('strips inside table cells and nested children', () => {
+    const withHighlights: Blocks = [
+      {
+        id: 't1',
+        type: 'table',
+        content: {
+          type: 'tableContent',
+          rows: [{ cells: [[run('cell', { commentRef: 'c1' })]] }],
+        },
+      },
+      {
+        ...paragraph('p1', 'parent'),
+        children: [
+          {
+            id: 'p2',
+            type: 'paragraph',
+            content: [run('child', { commentRef: 'c1' })],
+          },
+        ],
+      },
+    ];
+    const anchors = extractCommentAnchors(stripCommentRef(withHighlights, 'c1'));
+    expect(anchors.size).toBe(0);
   });
 });
 
