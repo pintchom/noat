@@ -14,8 +14,11 @@ import {
 import { BlockNoteView } from '@blocknote/mantine';
 import {
   type DefaultReactSuggestionItem,
+  FormattingToolbar,
+  FormattingToolbarController,
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
+  getFormattingToolbarItems,
   useCreateBlockNote,
 } from '@blocknote/react';
 import { createParser } from 'prosemirror-highlight/shiki';
@@ -23,6 +26,7 @@ import { type KeyboardEvent, useEffect, useState } from 'react';
 import { NOTE_ICON, noteIconForStorage, resolveNoteIcon } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
 import { Comment } from './Comment';
+import { CommentToolbarButton } from './CommentToolbarButton';
 import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
 import { NoteLink } from './NoteLink';
@@ -242,8 +246,20 @@ export function NoteEditor({
           editor={editor}
           theme={isDark ? 'dark' : 'light'}
           slashMenu={false}
+          formattingToolbar={false}
           onChange={() => emit(title, icon)}
         >
+          {/* Default selection toolbar plus a Comment button — the only way
+              to attach a comment to table content, since cells can't hold
+              blocks and the slash menu stays closed inside them. */}
+          <FormattingToolbarController
+            formattingToolbar={() => (
+              <FormattingToolbar>
+                {getFormattingToolbarItems()}
+                <CommentToolbarButton key="commentButton" />
+              </FormattingToolbar>
+            )}
+          />
           <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
           {/* Replaces the default slash menu to add the "Page" item; the
               shouldOpen guard matches BlockNote's default (no menu inside
