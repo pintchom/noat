@@ -29,6 +29,19 @@ function getEditor(): ServerBlockNoteEditor {
 const ANCHOR_PATTERN = /^:\d+(?::\d+)?$/;
 
 /**
+ * commentRef styles anchor inline comments to text runs. The default schema
+ * doesn't know them, so they're dropped before conversion — the comment
+ * entries themselves live in the note file, not in the text.
+ */
+function dropCommentRef(item: unknown): unknown {
+  if (typeof item !== 'object' || item === null) return item;
+  const styles = (item as { styles?: Record<string, unknown> }).styles;
+  if (!styles || !('commentRef' in styles)) return item;
+  const { commentRef: _dropped, ...rest } = styles;
+  return { ...item, styles: rest };
+}
+
+/**
  * Replace NOAT-specific inline content (fileLink and noteLink chips) with
  * plain text so the default BlockNote schema can convert blocks to markdown.
  * fileLink becomes code-styled text; noteLink becomes its title. A line
@@ -37,7 +50,7 @@ const ANCHOR_PATTERN = /^:\d+(?::\d+)?$/;
  */
 function sanitizeInline(content: unknown): unknown {
   if (!Array.isArray(content)) return content;
-  return content.reduce<unknown[]>((acc, item, index) => {
+  return content.map(dropCommentRef).reduce<unknown[]>((acc, item, index) => {
     if (typeof item !== 'object' || item === null) {
       acc.push(item);
       return acc;
@@ -76,6 +89,49 @@ function sanitizeInline(content: unknown): unknown {
     acc.push(item);
     return acc;
   }, []);
+}
+
+// Review-comment blocks travel through markdown as marker-prefixed quotes:
+// "> 💬 like this". The marker is what makes the quote re-promotable.
+const COMMENT_MARKER = '💬';
+const COMMENT_MARKER_PATTERN = /^💬\s*/;
+
+/**
+ * Render a comment block as a quote with the marker prepended, so the
+ * default-schema converter can emit it and a reparse can re-promote it.
+ */
+function commentToQuote(block: Block): Block {
+  const content = (block as { content?: unknown }).content;
+  return {
+    ...block,
+    type: 'quote',
+    props: {},
+    content: [
+      { type: 'text', text: `${COMMENT_MARKER} `, styles: {} },
+      ...(Array.isArray(content) ? content : []),
+    ],
+  } as Block;
+}
+
+/**
+ * Promote marker-prefixed quotes back into comment blocks — the inverse of
+ * commentToQuote, so comments survive a markdown round-trip. Props are reset:
+ * the comment spec accepts none, and quote props would fail schema checks.
+ */
+function promoteCommentQuote(block: Block): Block {
+  if (block.type !== 'quote') return block;
+  const content = (block as { content?: unknown }).content;
+  if (!Array.isArray(content)) return block;
+  const [first, ...rest] = content as Array<{ type?: string; text?: string }>;
+  if (first?.type !== 'text' || typeof first.text !== 'string') return block;
+  if (!COMMENT_MARKER_PATTERN.test(first.text)) return block;
+  const stripped = first.text.replace(COMMENT_MARKER_PATTERN, '');
+  return {
+    ...block,
+    type: 'comment',
+    props: {},
+    content: stripped.length > 0 ? [{ ...first, text: stripped }, ...rest] : rest,
+  } as Block;
 }
 
 // A workspace-relative path: at least one slash, an extension, and optionally
@@ -151,10 +207,11 @@ function mapBlockTree(
 
 function sanitizeBlocks(blocks: Block[]): Block[] {
   return mapBlockTree(blocks, sanitizeInline, (block) => {
-    const props = (block as { props?: unknown }).props;
+    const mapped = block.type === 'comment' ? commentToQuote(block) : block;
+    const props = (mapped as { props?: unknown }).props;
     return {
-      ...block,
-      ...(props !== undefined && { props: sanitizeProps(block.type, props) }),
+      ...mapped,
+      ...(props !== undefined && { props: sanitizeProps(mapped.type, props) }),
     } as Block;
   });
 }
@@ -210,5 +267,5 @@ export async function blocksToMarkdown(blocks: NoteFile['blocks']): Promise<stri
 
 export async function markdownToBlocks(markdown: string): Promise<NoteFile['blocks']> {
   const blocks = await getEditor().tryParseMarkdownToBlocks(markdown);
-  return ensureIds(mapBlockTree(blocks as unknown as Block[], promoteInline));
+  return ensureIds(mapBlockTree(blocks as unknown as Block[], promoteInline, promoteCommentQuote));
 }

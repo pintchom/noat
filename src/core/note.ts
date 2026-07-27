@@ -11,6 +11,21 @@ export const blockSchema = z
   })
   .passthrough();
 
+/**
+ * An inline review comment. Its anchor is every text run whose commentRef
+ * style carries the same id; when that text is rewritten the anchor is lost
+ * and the entry survives as unanchored feedback until resolved.
+ */
+export const inlineCommentSchema = z
+  .object({
+    id: z.string(),
+    text: z.string(),
+    createdAt: z.string(),
+  })
+  .passthrough();
+
+export type InlineComment = z.infer<typeof inlineCommentSchema>;
+
 export const noteFileSchema = z
   .object({
     version: z.literal(1),
@@ -20,6 +35,7 @@ export const noteFileSchema = z
     createdAt: z.string(),
     updatedAt: z.string(),
     blocks: z.array(blockSchema),
+    comments: z.array(inlineCommentSchema).optional(),
   })
   .passthrough();
 

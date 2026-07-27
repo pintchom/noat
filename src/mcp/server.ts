@@ -3,7 +3,13 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import type { NoteFile } from '../core/note';
 import { listAllNotes, readNoteByPath } from '../core/note-listing';
-import { blocksToSections, sliceSection } from '../core/note-text';
+import {
+  blocksToSections,
+  extractCommentAnchors,
+  extractComments,
+  sliceSection,
+  stripCommentRef,
+} from '../core/note-text';
 import { getNoatHome } from '../core/paths';
 import { SearchEngine } from '../core/search/engine';
 import { initStore } from '../core/store';
@@ -42,6 +48,28 @@ workspace-relative file path). In markdown renderings it appears as inline
 code containing the path. In markdown writes, inline code holding a relative
 path with an extension (\`src/core/store.ts\`, optionally with a :line
 anchor) becomes a chip automatically — reference workspace files that way.
+
+One custom block element exists: "comment" (a review-feedback callout the
+user attaches to the content just above it). In markdown it is a blockquote
+starting with 💬 ("> 💬 like this"), and writing that form creates one.
+
+## Review workflow
+
+The user reviews notes by attaching comments, in two forms:
+- Inline comments: anchored to highlighted text. read_comments returns each
+  with an id, the highlighted text ("anchor"), and its section. Highlights
+  are invisible in markdown renderings, and rewriting anchored text detaches
+  the comment (it stays listed as anchored: false until resolved).
+- Comment blocks: "> 💬 ..." callouts in the note's flow, annotating the
+  content just above them.
+
+When asked to address feedback: call read_comments, act on each comment,
+then close what you addressed — resolve_comment (by id) for inline comments,
+and for comment blocks delete them while rewriting their section with
+replace_note_section. Leave comments you did not address open. Do not
+re-read or rewrite the whole note unless a comment references content you do
+not recognize. To ask the user something or explain a pushback, add a
+"> 💬 ..." comment of your own.
 
 ## Conventions
 
@@ -93,6 +121,29 @@ both light and dark themes.
 
 Custom inline element "fileLink": { "type": "fileLink", "props": { "path": "src/foo.ts" } }
 
+Custom block "comment" (a review-feedback callout the user attaches to the
+content just above it): { "type": "comment", "props": {}, "content": [ ...inline... ] }
+
+## Review workflow
+
+The user reviews notes by attaching comments, in two forms:
+- Inline comments: anchored to text runs via a "commentRef" style whose
+  string value is the comment id; the comment entries live in the note
+  file's top-level "comments" field. read_comments returns each with its id,
+  highlighted text ("anchor"), and section. Preserve commentRef styles when
+  editing blocks; dropping styled text detaches its comment (listed as
+  anchored: false until resolved).
+- Comment blocks: "comment" blocks in the note's flow, annotating the
+  content just above them.
+
+When asked to address feedback: call read_comments, act on each comment,
+then close what you addressed — resolve_comment (by id) for inline comments,
+and for comment blocks delete them while rewriting their section with
+replace_note_section. Leave comments you did not address open. Do not
+re-read or rewrite the whole note unless a comment references content you do
+not recognize. To ask the user something or explain a pushback, add a
+comment block of your own.
+
 Study an existing note with read_note before writing richly formatted content
 so you match the block types and prop values the editor expects.
 
@@ -103,6 +154,12 @@ so you match the block types and prop values the editor expects.
 - When the user asks you to remember something, prefer appending to an
   existing relevant note over creating near-duplicates. Search first.
 - Keep titles short and descriptive; they double as filenames.`;
+
+const REPLACE_SECTION_DESCRIPTION =
+  'Replace one section of a note — the heading plus its content, sub-sections included — ' +
+  'with new content. section matches like read_note (heading text or unique prefix). ' +
+  'Include the (possibly revised) heading in the replacement. Prefer this over ' +
+  'replace_note_content for targeted edits.';
 
 const mcpBlockSchema = z
   .object({
@@ -230,6 +287,42 @@ async function main(): Promise<void> {
 
   const engine = new SearchEngine(noatHome);
 
+  /**
+   * Splice replacement blocks over one section's top-level range and save.
+   * The response echoes the note's new heading list — the rewrite may have
+   * renamed the section, and the caller needs the current name to target it.
+   */
+  const replaceSection = async (
+    notePath: string,
+    section: string,
+    replacement: NoteFile['blocks']
+  ) => {
+    const note = await readNoteByPath(noatHome, notePath);
+    const slice = sliceSection(note.blocks, section);
+    if (slice.kind === 'not-found') {
+      return json({ error: `No heading matches "${section}"`, headings: slice.headings });
+    }
+    if (slice.kind === 'ambiguous') {
+      return json({ error: `"${section}" is ambiguous`, candidates: slice.candidates });
+    }
+    const blocks = [
+      ...note.blocks.slice(0, slice.start),
+      ...replacement,
+      ...note.blocks.slice(slice.end),
+    ];
+    await writeNoteFile(noatHome, notePath, { ...note, blocks });
+    await engine.updateNote(notePath);
+    const sections = blocksToSections(blocks)
+      .map((entry) => entry.heading)
+      .filter((heading) => heading.length > 0);
+    return json({
+      replaced: notePath,
+      section: slice.heading,
+      blocks: replacement.length,
+      sections,
+    });
+  };
+
   server.registerTool(
     'search_notes',
     {
@@ -314,6 +407,20 @@ async function main(): Promise<void> {
         return json({ replaced: notePath, blocks: prepared.length });
       }
     );
+
+    server.registerTool(
+      'replace_note_section',
+      {
+        description: REPLACE_SECTION_DESCRIPTION,
+        inputSchema: {
+          notePath: z.string(),
+          section: z.string().describe('Heading text (or unique prefix) of the section to replace'),
+          blocks: z.array(mcpBlockSchema),
+        },
+      },
+      async ({ notePath, section, blocks }) =>
+        replaceSection(notePath, section, parseBlocks(blocks))
+    );
   } else {
     server.registerTool(
       'create_note',
@@ -368,6 +475,20 @@ async function main(): Promise<void> {
         return json({ replaced: notePath, blocks: blocks.length });
       }
     );
+
+    server.registerTool(
+      'replace_note_section',
+      {
+        description: REPLACE_SECTION_DESCRIPTION,
+        inputSchema: {
+          notePath: z.string(),
+          section: z.string().describe('Heading text (or unique prefix) of the section to replace'),
+          markdown: z.string(),
+        },
+      },
+      async ({ notePath, section, markdown }) =>
+        replaceSection(notePath, section, await markdownToBlocks(markdown))
+    );
   }
 
   server.registerTool(
@@ -383,6 +504,70 @@ async function main(): Promise<void> {
         return json({ repoKey: null, note: 'Not inside a git repository — use scope "global".' });
       const notes = await listAllNotes(noatHome, repo.repoKey);
       return json({ repoKey: repo.repoKey, repoRoot: repo.repoRoot, notes });
+    }
+  );
+
+  server.registerTool(
+    'read_comments',
+    {
+      description:
+        'Read only a note\'s review comments, without the note content. Inline comments (kind "inline") carry an id, the highlighted text they annotate, and their section — resolve them with resolve_comment once addressed. Comment blocks (kind "block") carry their section and the text just above them — delete them by rewriting their section. Far cheaper than read_note when processing feedback on content you already know.',
+      inputSchema: { notePath: z.string() },
+    },
+    async ({ notePath }) => {
+      const note = await readNoteByPath(noatHome, notePath);
+      const anchors = extractCommentAnchors(note.blocks);
+      const inline = (note.comments ?? []).map((comment) => {
+        const anchor = anchors.get(comment.id);
+        return {
+          kind: 'inline' as const,
+          id: comment.id,
+          // An unanchored comment's highlight was lost to a text rewrite;
+          // the feedback still stands until explicitly resolved.
+          ...(anchor
+            ? { section: anchor.section, anchor: anchor.anchor, anchored: true }
+            : { anchored: false }),
+          text: comment.text,
+          createdAt: comment.createdAt,
+        };
+      });
+      const blockComments = extractComments(note.blocks).map((comment) => ({
+        kind: 'block' as const,
+        ...comment,
+      }));
+      return json({
+        notePath,
+        updatedAt: note.updatedAt,
+        comments: [...inline, ...blockComments],
+      });
+    }
+  );
+
+  server.registerTool(
+    'resolve_comment',
+    {
+      description:
+        'Resolve an inline comment by id once its feedback has been addressed: deletes the comment and strips its highlight from the text. Not for kind "block" comments — delete those by rewriting their section.',
+      inputSchema: { notePath: z.string(), commentId: z.string() },
+    },
+    async ({ notePath, commentId }) => {
+      const note = await readNoteByPath(noatHome, notePath);
+      const existing = note.comments ?? [];
+      if (!existing.some((comment) => comment.id === commentId)) {
+        return json({
+          error: `No inline comment with id "${commentId}"`,
+          commentIds: existing.map((comment) => comment.id),
+        });
+      }
+      const comments = existing.filter((comment) => comment.id !== commentId);
+      const blocks = stripCommentRef(note.blocks, commentId);
+      await writeNoteFile(noatHome, notePath, {
+        ...note,
+        blocks,
+        comments: comments.length > 0 ? comments : undefined,
+      });
+      await engine.updateNote(notePath);
+      return json({ resolved: commentId, remaining: comments.length });
     }
   );
 

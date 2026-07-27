@@ -186,6 +186,126 @@ try {
   }
   console.log('section read: ok');
 
+  // Review loop: a comment lands as a comment block, read_comments surfaces
+  // it with its section + anchor, and a section-scoped rewrite clears it
+  // without touching blocks outside the section.
+  await request('tools/call', {
+    name: 'append_to_note',
+    arguments: directJson
+      ? {
+          notePath,
+          blocks: [
+            {
+              type: 'comment',
+              props: {},
+              content: [{ type: 'text', text: 'Trim this section.', styles: {} }],
+              children: [],
+            },
+          ],
+        }
+      : { notePath, markdown: '> 💬 Trim this section.' },
+  });
+  const commented = await request('tools/call', {
+    name: 'read_comments',
+    arguments: { notePath },
+  });
+  const comments = toolText(commented).comments;
+  if (comments.length !== 1 || comments[0].section !== 'Appended' || !comments[0].text.includes('Trim')) {
+    throw new Error(`read_comments returned ${JSON.stringify(comments)}`);
+  }
+  console.log('read_comments:', JSON.stringify(comments[0]));
+
+  const beforeReplace = toolText(
+    await request('tools/call', {
+      name: 'read_note',
+      arguments: directJson ? { notePath } : { notePath, includeBlocks: true },
+    })
+  ).blocks;
+  const replaced = await request('tools/call', {
+    name: 'replace_note_section',
+    arguments: directJson
+      ? {
+          notePath,
+          section: 'Appended',
+          blocks: [
+            {
+              type: 'heading',
+              props: { level: 2, textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+              content: [{ type: 'text', text: 'Appended', styles: {} }],
+              children: [],
+            },
+            {
+              type: 'paragraph',
+              props: { textColor: 'default', backgroundColor: 'default', textAlignment: 'left' },
+              content: [{ type: 'text', text: 'Trimmed.', styles: {} }],
+              children: [],
+            },
+          ],
+        }
+      : { notePath, section: 'Appended', markdown: '## Appended\n\nTrimmed.' },
+  });
+  if (!toolText(replaced).sections.includes('Appended')) {
+    throw new Error(`replace_note_section sections: ${JSON.stringify(toolText(replaced))}`);
+  }
+  const afterReplace = toolText(
+    await request('tools/call', {
+      name: 'read_note',
+      arguments: directJson ? { notePath } : { notePath, includeBlocks: true },
+    })
+  ).blocks;
+  const sectionStart = beforeReplace.findIndex(
+    (b) => b.type === 'heading' && JSON.stringify(b.content).includes('Appended')
+  );
+  const beforeIds = beforeReplace.slice(0, sectionStart).map((b) => b.id);
+  const afterIds = afterReplace.slice(0, sectionStart).map((b) => b.id);
+  if (JSON.stringify(beforeIds) !== JSON.stringify(afterIds)) {
+    throw new Error('replace_note_section touched blocks outside the section');
+  }
+  const remaining = toolText(
+    await request('tools/call', { name: 'read_comments', arguments: { notePath } })
+  ).comments;
+  if (remaining.length !== 0) {
+    throw new Error(`comments survived the section rewrite: ${JSON.stringify(remaining)}`);
+  }
+  console.log('review loop (comment -> read_comments -> section rewrite): ok');
+
+  // Inline comments: the editor writes highlight styles + a comments field
+  // straight into the note file — simulate that on disk, then check
+  // read_comments surfaces the anchor and resolve_comment clears both the
+  // entry and its highlight.
+  const noteFsPath = path.join(noatHome, 'notes', notePath);
+  const onDisk = JSON.parse(fs.readFileSync(noteFsPath, 'utf8'));
+  onDisk.blocks.push({
+    id: 'inline-target',
+    type: 'paragraph',
+    props: {},
+    content: [{ type: 'text', text: 'flagged text', styles: { commentRef: 'ic1' } }],
+    children: [],
+  });
+  onDisk.comments = [{ id: 'ic1', text: 'is this needed?', createdAt: new Date().toISOString() }];
+  fs.writeFileSync(noteFsPath, JSON.stringify(onDisk));
+  const inlineComments = toolText(
+    await request('tools/call', { name: 'read_comments', arguments: { notePath } })
+  ).comments;
+  const inlineEntry = inlineComments.find((comment) => comment.kind === 'inline');
+  if (!inlineEntry || inlineEntry.anchor !== 'flagged text' || inlineEntry.anchored !== true) {
+    throw new Error(`inline comment not surfaced: ${JSON.stringify(inlineComments)}`);
+  }
+  const resolved = toolText(
+    await request('tools/call', {
+      name: 'resolve_comment',
+      arguments: { notePath, commentId: 'ic1' },
+    })
+  );
+  if (resolved.resolved !== 'ic1') {
+    throw new Error(`resolve_comment failed: ${JSON.stringify(resolved)}`);
+  }
+  const afterResolve = JSON.parse(fs.readFileSync(noteFsPath, 'utf8'));
+  if (afterResolve.comments || JSON.stringify(afterResolve.blocks).includes('commentRef')) {
+    throw new Error('resolve_comment left the entry or highlight behind');
+  }
+  console.log('inline comment loop (read_comments -> resolve_comment): ok');
+
   // Notes written after the keyword index was built must still be findable.
   const late = await request('tools/call', {
     name: 'create_note',

@@ -11,6 +11,7 @@ const TEXT_COLOR = '#1f1f1f';
 const MUTED_COLOR = '#8a8a8a';
 const LINK_COLOR = '#0b6e99';
 const CODE_BG_COLOR = '#f4f4f2';
+const COMMENT_COLOR = '#b98a2f';
 const RULE_COLOR = '#dddddd';
 const CHILD_INDENT = 18;
 const HEADING_SIZES: Record<number, number> = { 1: 19, 2: 15.5, 3: 13, 4: 12, 5: 11, 6: 10.5 };
@@ -441,6 +442,38 @@ export async function noteToPdf(
               .save()
               .rect(barX, startY, 2.5, doc.y - startY)
               .fill('#cccccc')
+              .restore();
+          }
+          break;
+        }
+        case 'comment': {
+          // The built-in fonts drop emoji, so the callout gets a text label
+          // and an amber bar instead of the editor's 💬 glyph.
+          const barX = x + 2;
+          const indented = x + 14;
+          const startY = doc.y;
+          renderRuns(
+            [
+              {
+                text: 'COMMENT  ',
+                bold: true,
+                italic: false,
+                code: false,
+                underline: false,
+                strike: false,
+                color: COMMENT_COLOR,
+              },
+              ...runs,
+            ],
+            indented,
+            width - 14,
+            { align }
+          );
+          if (doc.y > startY) {
+            doc
+              .save()
+              .rect(barX, startY, 2.5, doc.y - startY)
+              .fill(COMMENT_COLOR)
               .restore();
           }
           break;
