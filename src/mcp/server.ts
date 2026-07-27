@@ -155,6 +155,12 @@ so you match the block types and prop values the editor expects.
   existing relevant note over creating near-duplicates. Search first.
 - Keep titles short and descriptive; they double as filenames.`;
 
+const REPLACE_SECTION_DESCRIPTION =
+  'Replace one section of a note — the heading plus its content, sub-sections included — ' +
+  'with new content. section matches like read_note (heading text or unique prefix). ' +
+  'Include the (possibly revised) heading in the replacement. Prefer this over ' +
+  'replace_note_content for targeted edits.';
+
 const mcpBlockSchema = z
   .object({
     type: z.string(),
@@ -316,12 +322,6 @@ async function main(): Promise<void> {
       sections,
     });
   };
-
-  const REPLACE_SECTION_DESCRIPTION =
-    'Replace one section of a note — the heading plus its content, sub-sections included — ' +
-    'with new content. section matches like read_note (heading text or unique prefix). ' +
-    'Include the (possibly revised) heading in the replacement. Prefer this over ' +
-    'replace_note_content for targeted edits.';
 
   server.registerTool(
     'search_notes',

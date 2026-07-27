@@ -19,6 +19,10 @@ function paragraph(id: string, text: string): Blocks[number] {
   return { id, type: 'paragraph', content: [{ type: 'text', text, styles: {} }] };
 }
 
+function run(text: string, styles: Record<string, unknown> = {}) {
+  return { type: 'text', text, styles };
+}
+
 const blocks: Blocks = [
   paragraph('p0', 'intro text'),
   heading('h1', 2, '1. Setup'),
@@ -171,12 +175,6 @@ describe('extractComments', () => {
 });
 
 describe('extractCommentAnchors', () => {
-  const run = (text: string, styles: Record<string, unknown> = {}) => ({
-    type: 'text',
-    text,
-    styles,
-  });
-
   it('maps ids to highlighted text with their section', () => {
     const withHighlights: Blocks = [
       heading('h1', 2, '1. Setup'),
@@ -223,12 +221,6 @@ describe('extractCommentAnchors', () => {
 });
 
 describe('stripCommentRef', () => {
-  const run = (text: string, styles: Record<string, unknown> = {}) => ({
-    type: 'text',
-    text,
-    styles,
-  });
-
   it('removes only the matching id and keeps other styles', () => {
     const withHighlights: Blocks = [
       {

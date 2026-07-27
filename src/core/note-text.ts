@@ -126,7 +126,7 @@ export function sliceSection(blocks: NoteFile['blocks'], section: string): Secti
 // them so a long paragraph doesn't defeat the point of a comments-only read.
 const ANCHOR_MAX_CHARS = 160;
 
-export interface NoteComment {
+export interface BlockComment {
   /** Heading of the section the comment falls under ('' before any heading). */
   section: string;
   /** Text of the block just above the comment — its anchor in the document. */
@@ -139,8 +139,8 @@ export interface NoteComment {
  * (section heading + the text of the preceding block) for a reader who
  * already knows the note to locate it without fetching the content.
  */
-export function extractComments(blocks: NoteFile['blocks']): NoteComment[] {
-  const comments: NoteComment[] = [];
+export function extractComments(blocks: NoteFile['blocks']): BlockComment[] {
+  const comments: BlockComment[] = [];
   let section = '';
   let previous = '';
 

@@ -14,7 +14,7 @@ export function CommentToolbarButton({ onAddComment }: { onAddComment: (id: stri
   const addComment = () => {
     const id = crypto.randomUUID();
     // The hook types the editor against the default schema, which doesn't
-    // know the custom commentRef style — go through unknown, as elsewhere.
+    // know the custom commentRef style — go through unknown.
     editor.addStyles({ commentRef: id } as unknown as Parameters<typeof editor.addStyles>[0]);
     onAddComment(id);
   };
