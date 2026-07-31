@@ -268,3 +268,64 @@ describe('prepareBlocks color contrast', () => {
     expect(inline.styles).toEqual({ textColor: 'default', backgroundColor: 'default' });
   });
 });
+
+type AnyBlock = {
+  id: string;
+  type: string;
+  props?: Record<string, unknown>;
+  content?: unknown;
+  children?: AnyBlock[];
+};
+
+const IMAGE_BLOCK = {
+  id: 'img-1',
+  type: 'image',
+  props: {
+    url: 'assets/0a1b2c3d.png',
+    name: 'screenshot.png',
+    caption: '',
+    showPreview: true,
+  },
+  children: [],
+};
+
+describe('image blocks round-trip through markdown', () => {
+  it('renders an image block as a markdown image with the asset path', async () => {
+    const markdown = await blocksToMarkdown([IMAGE_BLOCK]);
+    expect(markdown).toContain('![screenshot.png](assets/0a1b2c3d.png)');
+  });
+
+  it('re-promotes a standalone markdown image into an image block', async () => {
+    const markdown = await blocksToMarkdown([IMAGE_BLOCK]);
+    const blocks = (await markdownToBlocks(markdown)) as AnyBlock[];
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.type).toBe('image');
+    expect(blocks[0]?.props?.url).toBe('assets/0a1b2c3d.png');
+    expect(blocks[0]?.props?.name).toBe('screenshot.png');
+  });
+
+  it('promotes asset images written inline in paragraph text', async () => {
+    const blocks = (await markdownToBlocks(
+      'before ![shot](assets/0a1b2c3d.png) after\n'
+    )) as AnyBlock[];
+    const types = blocks.map((block) => block.type);
+    expect(types).toEqual(['paragraph', 'image', 'paragraph']);
+    expect(blocks[1]?.props?.url).toBe('assets/0a1b2c3d.png');
+  });
+
+  it('leaves asset image syntax inside code fences untouched', async () => {
+    const blocks = (await markdownToBlocks(
+      '```\n![shot](assets/0a1b2c3d.png)\n```\n'
+    )) as AnyBlock[];
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.type).toBe('codeBlock');
+  });
+
+  it('leaves asset image syntax inside inline code untouched', async () => {
+    const blocks = (await markdownToBlocks(
+      'literal `![shot](assets/0a1b2c3d.png)` syntax\n'
+    )) as AnyBlock[];
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.type).toBe('paragraph');
+  });
+});

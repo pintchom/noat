@@ -21,6 +21,7 @@ import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
 import { NoteLink } from './NoteLink';
+import { resolveStoreUrl, saveAssetToStore } from './asset-client';
 import { searchWorkspaceFiles } from './file-search-client';
 import { searchNotes } from './note-search-client';
 import { smartArrows } from './smart-arrows';
@@ -67,6 +68,13 @@ const schema = BlockNoteSchema.create({
 // mirroring how BlockNote's own Emoji slash item opens the ":" picker.
 const NOTE_PICKER_TRIGGER = '※';
 
+function isImageFileDrag(dataTransfer: DataTransfer | null): boolean {
+  if (dataTransfer === null) return false;
+  return Array.from(dataTransfer.items).some(
+    (item) => item.kind === 'file' && item.type.startsWith('image/')
+  );
+}
+
 function readDarkTheme(): boolean {
   return (
     document.body.classList.contains('vscode-dark') ||
@@ -101,7 +109,70 @@ export function NoteEditor({
     schema,
     extensions: [smartArrows],
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
+    // Pasted/dropped files are content-addressed into the store; blocks keep
+    // the stable store-relative path and rendering resolves it to a data URI.
+    uploadFile: saveAssetToStore,
+    resolveFileUrl: resolveStoreUrl,
   });
+
+  // Make the whole note surface a drop target. Only ProseMirror's content
+  // area cancels dragover on its own, so image drops on the title, padding,
+  // or below the content would fall through to the workbench, which opens
+  // the file as a new editor tab instead of inserting it.
+  useEffect(() => {
+    const insertDroppedImages = async (files: File[]): Promise<void> => {
+      let anchor = (() => {
+        try {
+          return editor.getTextCursorPosition().block;
+        } catch {
+          return editor.document.at(-1);
+        }
+      })();
+      for (const file of files) {
+        const url = await (async () => {
+          try {
+            return await saveAssetToStore(file);
+          } catch {
+            return undefined;
+          }
+        })();
+        if (!url || !anchor) continue;
+        const imageBlock = { type: 'image', props: { url, name: file.name } };
+        const inserted = editor.insertBlocks(
+          [imageBlock as unknown as PartialBlock],
+          anchor,
+          'after'
+        );
+        anchor = (inserted.at(-1) as typeof anchor) ?? anchor;
+      }
+    };
+
+    const handleDragOver = (event: DragEvent): void => {
+      if (!isImageFileDrag(event.dataTransfer)) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    };
+
+    const handleDrop = (event: DragEvent): void => {
+      // Inside the content area BlockNote's own handler routes the drop
+      // through uploadFile — don't double-insert.
+      if (event.target instanceof Element && event.target.closest('.ProseMirror')) return;
+      const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+        file.type.startsWith('image/')
+      );
+      if (files.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void insertDroppedImages(files);
+    };
+
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('drop', handleDrop);
+    return () => {
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('drop', handleDrop);
+    };
+  }, [editor]);
 
   const emit = (nextTitle: string, nextIcon: string | undefined): void => {
     onEdit(

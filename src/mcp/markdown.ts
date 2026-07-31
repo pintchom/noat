@@ -203,12 +203,40 @@ function ensureIds(blocks: Block[]): Block[] {
   });
 }
 
+const INLINE_ASSET_IMAGE = /!\[[^\]\n]*\]\(assets\/[^\s)]+\)/g;
+
+/**
+ * BlockNote's markdown parser only promotes an image to an image block when
+ * it stands alone; images mixed into paragraph text are silently dropped.
+ * Lift store-asset images onto their own paragraph so they survive parsing.
+ */
+function liftInlineAssetImages(markdown: string): string {
+  let inFence = false;
+  return markdown
+    .split('\n')
+    .map((line) => {
+      if (/^\s*(```|~~~)/.test(line)) {
+        inFence = !inFence;
+        return line;
+      }
+      if (inFence) return line;
+      // Leave inline code spans untouched — backticked text is literal.
+      return line
+        .split(/(`[^`]*`)/)
+        .map((segment) =>
+          segment.startsWith('`') ? segment : segment.replace(INLINE_ASSET_IMAGE, '\n\n$&\n\n')
+        )
+        .join('');
+    })
+    .join('\n');
+}
+
 export async function blocksToMarkdown(blocks: NoteFile['blocks']): Promise<string> {
   // biome-ignore lint/suspicious/noExplicitAny: server-util types expect its own Block shape
   return getEditor().blocksToMarkdownLossy(sanitizeBlocks(blocks) as any);
 }
 
 export async function markdownToBlocks(markdown: string): Promise<NoteFile['blocks']> {
-  const blocks = await getEditor().tryParseMarkdownToBlocks(markdown);
+  const blocks = await getEditor().tryParseMarkdownToBlocks(liftInlineAssetImages(markdown));
   return ensureIds(mapBlockTree(blocks as unknown as Block[], promoteInline));
 }

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { readAssetDataUri, saveAsset } from '../core/assets';
 import type {
   HostToWebviewMessage,
   NoteLinkResult,
@@ -166,6 +167,18 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
           break;
         case 'openNote':
           void openLinkedNote(noatHome, message.notePath);
+          break;
+        case 'saveAsset':
+          void saveAsset(noatHome, message.mime, Buffer.from(message.base64, 'base64'))
+            .then((assetPath) =>
+              post({ type: 'assetSaved', requestId: message.requestId, path: assetPath })
+            )
+            .catch(() => post({ type: 'assetSaved', requestId: message.requestId, path: '' }));
+          break;
+        case 'readAsset':
+          void readAssetDataUri(noatHome, message.path)
+            .then((dataUri) => post({ type: 'assetData', requestId: message.requestId, dataUri }))
+            .catch(() => post({ type: 'assetData', requestId: message.requestId, dataUri: '' }));
           break;
       }
     });
