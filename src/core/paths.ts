@@ -23,6 +23,11 @@ export function getConfigPath(noatHome: string): string {
   return path.join(noatHome, 'config.json');
 }
 
+/** Binary attachments (pasted images) live beside notes/, committed with them. */
+export function getAssetsDir(noatHome: string): string {
+  return path.join(noatHome, 'assets');
+}
+
 export function getGlobalNotesDir(noatHome: string): string {
   return path.join(getNotesRoot(noatHome), 'global');
 }
