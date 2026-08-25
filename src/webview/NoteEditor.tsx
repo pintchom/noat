@@ -24,6 +24,7 @@ import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
 import { NoteLink } from './NoteLink';
 import { resolveAssetUrl, saveAsset } from './asset-client';
+import { caretTargetAfterRewrite, flattenBlockIds } from './caret-fallback';
 import { searchWorkspaceFiles } from './file-search-client';
 import { nestedBackspace } from './nested-backspace';
 import { searchNotes } from './note-search-client';
@@ -166,6 +167,7 @@ export function NoteEditor({
     appliedRevision.current = externalRevision;
 
     const cursor = editor.getTextCursorPosition();
+    const oldOrder = flattenBlockIds(editor.document);
     applyingExternal.current = true;
     try {
       editor.replaceBlocks(editor.document, note.blocks as unknown as PartialBlock[]);
@@ -176,9 +178,16 @@ export function NoteEditor({
     setIcon(noteIconForStorage(note.icon));
 
     // Block ids are stable across external rewrites, so the caret can go back
-    // where it was whenever its block survived the change.
-    if (editor.getBlock(cursor.block.id)) {
-      editor.setTextCursorPosition(cursor.block.id, 'end');
+    // where it was whenever its block survived the change — and to the
+    // nearest surviving neighbor when it didn't (undo removes the very block
+    // the caret sat in).
+    const target = caretTargetAfterRewrite(
+      oldOrder,
+      cursor.block.id,
+      (id) => editor.getBlock(id) !== undefined
+    );
+    if (target) {
+      editor.setTextCursorPosition(target, 'end');
       editor.focus();
     }
   }, [externalRevision, note, editor]);
