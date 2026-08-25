@@ -147,8 +147,17 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
       }, AUTO_SAVE_MS);
     };
 
-    const applyWebviewEdit = async (text: string): Promise<void> => {
-      if (text === document.getText()) return;
+    const applyWebviewEdit = async (rawText: string): Promise<void> => {
+      // Match the document's trailing-newline convention. Serialized notes end
+      // with "\n", but save participants (files.trimFinalNewlines etc.) may
+      // strip it on every autosave — and each strip is its own undo step, so
+      // undoing one visible change took two cmd+z presses (#40).
+      const docText = document.getText();
+      const text =
+        !docText.endsWith('\n') && docText.length > 0 && rawText.endsWith('\n')
+          ? rawText.slice(0, -1)
+          : rawText;
+      if (text === docText) return;
       lastWebviewText = text;
       const edit = new vscode.WorkspaceEdit();
       const fullRange = new vscode.Range(0, 0, document.lineCount, 0);
