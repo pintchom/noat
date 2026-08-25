@@ -271,7 +271,8 @@ describe('prepareBlocks color contrast', () => {
 
 describe('superscript and subscript', () => {
   const runs = (blocks: Awaited<ReturnType<typeof markdownToBlocks>>) =>
-    (blocks[0] as { content: Array<{ text: string; styles: Record<string, unknown> }> }).content;
+    (blocks[0] as unknown as { content: Array<{ text: string; styles: Record<string, unknown> }> })
+      .content;
 
   it('round-trips through markdown', async () => {
     const original = await markdownToBlocks('x^2^ and H~2~O');
