@@ -34,10 +34,10 @@ function createMountedEditor(initialContent: PartialBlock[]): BlockNoteEditor {
 }
 
 /** Runs a Backspace keydown through the editor's handlers, like a real keypress. */
-function pressBackspace(editor: BlockNoteEditor): void {
+function pressBackspace(editor: BlockNoteEditor, modifiers: KeyboardEventInit = {}): void {
   const view = editor.prosemirrorView;
   if (!view) throw new Error('editor is not mounted');
-  const event = new KeyboardEvent('keydown', { key: 'Backspace' });
+  const event = new KeyboardEvent('keydown', { key: 'Backspace', ...modifiers });
   view.someProp('handleKeyDown', (handler) => handler(view, event));
 }
 
@@ -82,6 +82,21 @@ test('backspace at the start of a non-empty nested middle paragraph merges upwar
   expect(shape(editor)).toEqual([
     'toggleListItem(toggle)',
     '  checkListItem(ab)',
+    '  checkListItem(c)',
+    '  checkListItem(d)',
+  ]);
+});
+
+test('word-delete (Alt+Backspace) on an emptied middle paragraph leaves siblings nested', () => {
+  const editor = createMountedEditor(toggleWithChecklist);
+  editor.updateBlock('b', { content: [], type: 'paragraph' });
+  editor.setTextCursorPosition('b', 'start');
+
+  pressBackspace(editor, { altKey: true });
+
+  expect(shape(editor)).toEqual([
+    'toggleListItem(toggle)',
+    '  checkListItem(a)',
     '  checkListItem(c)',
     '  checkListItem(d)',
   ]);

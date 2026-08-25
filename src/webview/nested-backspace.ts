@@ -14,22 +14,27 @@ import { Extension } from '@tiptap/core';
 const nestedBackspaceKeymap = Extension.create({
   name: 'noatNestedBackspace',
   addKeyboardShortcuts() {
+    const joinInsteadOfLift = (): boolean => {
+      const { $from, empty } = this.editor.state.selection;
+      if (!empty || $from.parentOffset !== 0) return false;
+      // Only paragraphs reach BlockNote's lift step; other block types
+      // un-format to a paragraph in place first, which never moves siblings.
+      if ($from.parent.type.name !== 'paragraph') return false;
+      if ($from.node(-1)?.type.name !== 'blockContainer') return false;
+      const group = $from.node(-2);
+      // Nested means the block group hangs off another block, not the doc.
+      if (group?.type.name !== 'blockGroup' || $from.node(-3)?.type.name !== 'blockContainer')
+        return false;
+      const hasFollowingSibling = $from.index(-2) < group.childCount - 1;
+      if (!hasFollowingSibling) return false;
+      return this.editor.commands.joinTextblockBackward();
+    };
+    // Word (Alt) and line (Mod) deletes hit the same boundary at the start
+    // of a block, so all three need the guard.
     return {
-      Backspace: () => {
-        const { $from, empty } = this.editor.state.selection;
-        if (!empty || $from.parentOffset !== 0) return false;
-        // Only paragraphs reach BlockNote's lift step; other block types
-        // un-format to a paragraph in place first, which never moves siblings.
-        if ($from.parent.type.name !== 'paragraph') return false;
-        if ($from.node(-1)?.type.name !== 'blockContainer') return false;
-        const group = $from.node(-2);
-        // Nested means the block group hangs off another block, not the doc.
-        if (group?.type.name !== 'blockGroup' || $from.node(-3)?.type.name !== 'blockContainer')
-          return false;
-        const hasFollowingSibling = $from.index(-2) < group.childCount - 1;
-        if (!hasFollowingSibling) return false;
-        return this.editor.commands.joinTextblockBackward();
-      },
+      Backspace: joinInsteadOfLift,
+      'Alt-Backspace': joinInsteadOfLift,
+      'Mod-Backspace': joinInsteadOfLift,
     };
   },
 });
