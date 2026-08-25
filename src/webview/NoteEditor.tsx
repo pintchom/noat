@@ -25,6 +25,7 @@ import { NoteIconPicker } from './NoteIconPicker';
 import { NoteLink } from './NoteLink';
 import { resolveAssetUrl, saveAsset } from './asset-client';
 import { searchWorkspaceFiles } from './file-search-client';
+import { nestedBackspace } from './nested-backspace';
 import { searchNotes } from './note-search-client';
 import { smartArrows } from './smart-arrows';
 import '@blocknote/mantine/style.css';
@@ -130,7 +131,7 @@ export function NoteEditor({
 
   const editor = useCreateBlockNote({
     schema,
-    extensions: [smartArrows],
+    extensions: [smartArrows, nestedBackspace],
     // Local images (picked, pasted, or dropped) are stored in the note
     // store's assets dir; notes keep store-relative URLs that only resolve
     // to loadable webview URIs at render time.
