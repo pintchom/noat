@@ -170,7 +170,14 @@ export function NoteEditor({
     const oldOrder = flattenBlockIds(editor.document);
     applyingExternal.current = true;
     try {
-      editor.replaceBlocks(editor.document, note.blocks as unknown as PartialBlock[]);
+      // External rewrites must stay out of the editor's undo history. VS Code
+      // owns undo at the document level, and its undos arrive here as updates;
+      // recording them as fresh undoable steps made the next cmd+z replay them
+      // forward again, so undo oscillated instead of walking back (#40).
+      editor.transact((tr) => {
+        tr.setMeta('addToHistory', false);
+        editor.replaceBlocks(editor.document, note.blocks as unknown as PartialBlock[]);
+      });
     } finally {
       applyingExternal.current = false;
     }
