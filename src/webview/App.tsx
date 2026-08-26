@@ -15,7 +15,8 @@ type LoadState =
 export function App({ vscode }: { vscode: VsCodeApi }) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   // Bumped when the document changes outside the editor (undo, git revert,
-  // agent writes) so BlockNote re-initializes instead of merging states.
+  // agent writes). NoteEditor re-applies the content in place rather than
+  // remounting, so the caret survives.
   const [externalVersion, setExternalVersion] = useState(0);
 
   useEffect(() => {
@@ -54,8 +55,8 @@ export function App({ vscode }: { vscode: VsCodeApi }) {
 
   return (
     <NoteEditor
-      key={externalVersion}
       note={state.note}
+      externalRevision={externalVersion}
       onEdit={(text) => vscode.postMessage({ type: 'edit', text })}
     />
   );

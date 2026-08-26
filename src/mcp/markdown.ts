@@ -31,7 +31,9 @@ const ANCHOR_PATTERN = /^:\d+(?::\d+)?$/;
 /**
  * Replace NOAT-specific inline content (fileLink and noteLink chips) with
  * plain text so the default BlockNote schema can convert blocks to markdown.
- * fileLink becomes code-styled text; noteLink becomes its title. A line
+ * fileLink becomes code-styled text; noteLink becomes its title. Superscript
+ * and subscript become Pandoc's ^x^ / ~x~ markers -- the default schema has no
+ * such styles and the converter throws on any it does not know. A line
  * anchor right after a fileLink chip merges into the chip's path text — two
  * adjacent code spans would render as ambiguous markdown.
  */
@@ -45,10 +47,16 @@ function sanitizeInline(content: unknown): unknown {
     const inline = item as {
       type?: string;
       text?: string;
-      styles?: { code?: boolean };
+      styles?: { code?: boolean; superscript?: boolean; subscript?: boolean };
       props?: { path?: string; title?: string };
       content?: unknown;
     };
+    if (inline.type === 'text' && (inline.styles?.superscript || inline.styles?.subscript)) {
+      const { superscript, subscript, ...styles } = inline.styles;
+      const mark = superscript ? '^' : '~';
+      acc.push({ ...inline, text: `${mark}${inline.text ?? ''}${mark}`, styles });
+      return acc;
+    }
     if (inline.type === 'fileLink') {
       acc.push({ type: 'text', text: inline.props?.path ?? '', styles: { code: true } });
       return acc;
@@ -83,6 +91,32 @@ function sanitizeInline(content: unknown): unknown {
 // prose like `application/json` or `foo/bar` as plain code.
 const PATH_CODE_PATTERN = /^(?<path>[\w@.-]+(?:\/[\w@.-]+)+\.\w{1,10})(?<anchor>:\d+(?::\d+)?)?$/;
 
+// Pandoc's superscript/subscript syntax: ^2^ and ~2~, no whitespace inside.
+// The lookbehind keeps `~~strike~~` -- which the markdown parser normally eats
+// before we see it -- from being read as a subscript one character in.
+const VERTICAL_PATTERN = /(?<![\^~])\^([^\s^]+)\^|(?<![\^~])~([^\s~]+)~/g;
+
+/** Split ^sup^ / ~sub~ runs out of a plain text run. */
+function splitVertical(inline: { text?: string; styles?: unknown }): unknown[] {
+  const text = inline.text ?? '';
+  const out: unknown[] = [];
+  let last = 0;
+  for (const match of text.matchAll(VERTICAL_PATTERN)) {
+    const at = match.index ?? 0;
+    if (at > last) out.push({ ...inline, text: text.slice(last, at) });
+    const style = match[1] !== undefined ? 'superscript' : 'subscript';
+    out.push({
+      ...inline,
+      text: match[1] ?? match[2],
+      styles: { ...(inline.styles as object), [style]: true },
+    });
+    last = at + match[0].length;
+  }
+  if (out.length === 0) return [inline];
+  if (last < text.length) out.push({ ...inline, text: text.slice(last) });
+  return out;
+}
+
 /**
  * Promote path-shaped inline code into fileLink chips — the inverse of
  * sanitizeInline, so chips survive a markdown round-trip. A line anchor
@@ -93,7 +127,8 @@ function promoteInline(content: unknown): unknown {
   return content.flatMap((item) => {
     if (typeof item !== 'object' || item === null) return [item];
     const inline = item as { type?: string; text?: string; styles?: { code?: boolean } };
-    if (inline.type !== 'text' || inline.styles?.code !== true) return [item];
+    if (inline.type !== 'text') return [item];
+    if (inline.styles?.code !== true) return splitVertical(inline);
     const groups = inline.text?.match(PATH_CODE_PATTERN)?.groups;
     if (!groups?.path) return [item];
     const chip = { type: 'fileLink', props: { path: groups.path } };

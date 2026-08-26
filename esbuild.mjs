@@ -23,7 +23,7 @@ const extensionCtx = await esbuild.context({
   format: 'cjs',
   target: 'node20',
   // *.node keeps native bindings as runtime requires instead of bundling.
-  external: ['vscode', '*.node'],
+  external: ['vscode', '*.node', './xhr-sync-worker.js'],
   // onnxruntime-node's JS wrapper is bundled; its native binding loads via a
   // dynamic require of ../bin/napi-v6/<platform>/<arch>, which resolves next
   // to dist/ — we copy those binaries into bin/ below. sharp is a
@@ -41,13 +41,14 @@ const mcpCtx = await esbuild.context({
   platform: 'node',
   format: 'cjs',
   target: 'node20',
-  external: ['*.node'],
+  external: ['*.node', './xhr-sync-worker.js'],
   alias: { sharp: './src/shims/sharp-stub.ts' },
   mainFields: ['module', 'main'],
 });
 
-// jsdom (pulled in by @blocknote/server-util) requires this worker file by
-// path at runtime; it must sit next to the bundle.
+// jsdom (pulled in by @blocknote/server-util) resolves this worker file by
+// path at runtime, so it is marked external above and copied next to the
+// bundle here — inlining it would leave require.resolve pointing at nothing.
 fs.mkdirSync('dist', { recursive: true });
 fs.copyFileSync(
   'node_modules/jsdom/lib/jsdom/living/xhr/xhr-sync-worker.js',

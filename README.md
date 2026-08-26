@@ -91,6 +91,9 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 | `Cmd+Alt+P` (`Ctrl+Alt+P`) | Search notes (alternate binding) |
 | `Cmd+P` while the NOAT sidebar is focused | Search notes |
 | `Cmd+Shift+C` (`Ctrl+Shift+C`) inside a note | Format selection as inline code (Slack-style) |
+| `Cmd+Shift+.` (`Ctrl+Shift+.`) inside a note | Superscript the selection |
+| `Cmd+Shift+,` (`Ctrl+Shift+,`) inside a note | Subscript the selection |
+| `Cmd+Enter` (`Ctrl+Enter`) on a toggle | Open or close the toggle |
 | `Cmd+Shift+Alt+C` (`Ctrl+Shift+Alt+C`) inside a note | Turn the selected blocks into a code block |
 
 Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.

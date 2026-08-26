@@ -268,3 +268,28 @@ describe('prepareBlocks color contrast', () => {
     expect(inline.styles).toEqual({ textColor: 'default', backgroundColor: 'default' });
   });
 });
+
+describe('superscript and subscript', () => {
+  const runs = (blocks: Awaited<ReturnType<typeof markdownToBlocks>>) =>
+    (blocks[0] as unknown as { content: Array<{ text: string; styles: Record<string, unknown> }> })
+      .content;
+
+  it('round-trips through markdown', async () => {
+    const original = await markdownToBlocks('x^2^ and H~2~O');
+    expect(runs(original)).toEqual([
+      { type: 'text', text: 'x', styles: {} },
+      { type: 'text', text: '2', styles: { superscript: true } },
+      { type: 'text', text: ' and H', styles: {} },
+      { type: 'text', text: '2', styles: { subscript: true } },
+      { type: 'text', text: 'O', styles: {} },
+    ]);
+    // The default server schema knows neither style and throws on unknown
+    // ones, so this also guards the export path against blowing up.
+    expect(await blocksToMarkdown(original)).toContain('x^2^ and H~2~O');
+  });
+
+  it('leaves strikethrough alone', async () => {
+    const blocks = await markdownToBlocks('~~gone~~');
+    expect(runs(blocks)).toEqual([{ type: 'text', text: 'gone', styles: { strike: true } }]);
+  });
+});

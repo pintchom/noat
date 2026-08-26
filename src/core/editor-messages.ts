@@ -17,10 +17,12 @@ export interface NoteLinkResult {
 }
 
 export type HostToWebviewMessage =
-  | { type: 'init'; text: string }
+  | { type: 'init'; text: string; assetsBaseUri: string }
   | { type: 'update'; text: string }
   | { type: 'fileResults'; requestId: number; files: string[] }
-  | { type: 'noteResults'; requestId: number; notes: NoteLinkResult[] };
+  | { type: 'noteResults'; requestId: number; notes: NoteLinkResult[] }
+  /** url is the store-relative asset URL ("assets/<file>"); absent on failure. */
+  | { type: 'assetSaved'; requestId: number; url?: string };
 
 export type WebviewToHostMessage =
   | { type: 'ready' }
@@ -28,4 +30,5 @@ export type WebviewToHostMessage =
   | { type: 'searchFiles'; requestId: number; query: string }
   | { type: 'openFile'; path: string }
   | { type: 'searchNotes'; requestId: number; query: string }
-  | { type: 'openNote'; notePath: string };
+  | { type: 'openNote'; notePath: string }
+  | { type: 'saveAsset'; requestId: number; name: string; dataBase64: string };

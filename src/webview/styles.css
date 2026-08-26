@@ -314,9 +314,18 @@ body.vscode-high-contrast .bn-block-content[data-content-type="codeBlock"] .shik
   transition-delay: 0s;
 }
 
-/* Inline code style (backtick text) — keep a chip, but themed */
-.bn-inline-content code,
-.bn-editor :not([data-content-type="codeBlock"]) > * code {
+/*
+ * Inline code style (backtick text) — keep a chip, but themed. Scoped to
+ * `.bn-inline-content code` only: BlockNote puts that class on a code block's
+ * own contentDOM (the `<code>` inside `<pre>`), so any rule that can reach
+ * `<code>` from further up also paints the code block. A previous
+ * `:not([data-content-type="codeBlock"]) > * code` guard did not hold — its
+ * last combinator is a descendant one, so `*` bound to the block content and
+ * the `:not()` landed on the always-matching `.bn-block` wrapper. The chip
+ * padding then indented the first line of every code block by 4px, reading as
+ * a leading space that could not be deleted.
+ */
+.bn-inline-content code {
   background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
   border-radius: 3px;
   padding: 1px 4px;

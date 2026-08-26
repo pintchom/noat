@@ -3,8 +3,10 @@ import {
   BlockNoteSchema,
   type PartialBlock,
   createCodeBlockSpec,
+  createStyleSpec,
   defaultBlockSpecs,
   defaultInlineContentSpecs,
+  defaultStyleSpecs,
 } from '@blocknote/core';
 import { SuggestionMenu, filterSuggestionItems } from '@blocknote/core/extensions';
 import { BlockNoteView } from '@blocknote/mantine';
@@ -15,13 +17,16 @@ import {
   useCreateBlockNote,
 } from '@blocknote/react';
 import { createParser } from 'prosemirror-highlight/shiki';
-import { type KeyboardEvent, useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { NOTE_ICON, noteIconForStorage, resolveNoteIcon } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
 import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
 import { NoteLink } from './NoteLink';
+import { resolveAssetUrl, saveAsset } from './asset-client';
+import { caretTargetAfterRewrite, flattenBlockIds } from './caret-fallback';
 import { searchWorkspaceFiles } from './file-search-client';
+import { nestedBackspace } from './nested-backspace';
 import { searchNotes } from './note-search-client';
 import { smartArrows } from './smart-arrows';
 import '@blocknote/mantine/style.css';
@@ -51,6 +56,27 @@ const codeBlock = createCodeBlockSpec({
   },
 });
 
+/**
+ * Superscript and subscript, for exponents and chemistry. BlockNote ships
+ * neither, so they are custom boolean styles rendering plain `<sup>`/`<sub>`.
+ * The tags carry the meaning, so `toExternalHTML` is left to default and the
+ * markdown bridge in src/mcp/markdown.ts recognises them by tag name.
+ */
+const verticalStyle = (tag: 'sup' | 'sub', type: 'superscript' | 'subscript') =>
+  createStyleSpec(
+    { type, propSchema: 'boolean' },
+    {
+      render: () => {
+        const dom = document.createElement(tag);
+        return { dom, contentDOM: dom };
+      },
+      parse: (element) => (element.tagName.toLowerCase() === tag ? true : undefined),
+    }
+  );
+
+const superscript = verticalStyle('sup', 'superscript');
+const subscript = verticalStyle('sub', 'subscript');
+
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
@@ -60,6 +86,11 @@ const schema = BlockNoteSchema.create({
     ...defaultInlineContentSpecs,
     fileLink: FileLink,
     noteLink: NoteLink,
+  },
+  styleSpecs: {
+    ...defaultStyleSpecs,
+    superscript,
+    subscript,
   },
 });
 
@@ -88,9 +119,11 @@ function useVsCodeDarkTheme(): boolean {
 
 export function NoteEditor({
   note,
+  externalRevision,
   onEdit,
 }: {
   note: NoteFile;
+  externalRevision: number;
   onEdit: (text: string) => void;
 }) {
   const [title, setTitle] = useState(note.title);
@@ -99,7 +132,12 @@ export function NoteEditor({
 
   const editor = useCreateBlockNote({
     schema,
-    extensions: [smartArrows],
+    extensions: [smartArrows, nestedBackspace],
+    // Local images (picked, pasted, or dropped) are stored in the note
+    // store's assets dir; notes keep store-relative URLs that only resolve
+    // to loadable webview URIs at render time.
+    uploadFile: saveAsset,
+    resolveFileUrl: async (url) => resolveAssetUrl(url),
     initialContent: note.blocks.length > 0 ? (note.blocks as unknown as PartialBlock[]) : undefined,
   });
 
@@ -114,6 +152,52 @@ export function NoteEditor({
       })
     );
   };
+
+  // Set while we push host content into the editor, so the resulting
+  // onChange doesn't echo straight back as a fresh edit — that would restamp
+  // updatedAt and re-dirty the document the user just reverted.
+  const applyingExternal = useRef(false);
+  const appliedRevision = useRef(externalRevision);
+
+  // Re-apply external changes (VS Code undo, agent writes, git-sync) into the
+  // live editor instead of remounting it. A remount rebuilds the ProseMirror
+  // state from scratch, which drops focus and the selection every time.
+  useEffect(() => {
+    if (appliedRevision.current === externalRevision) return;
+    appliedRevision.current = externalRevision;
+
+    const cursor = editor.getTextCursorPosition();
+    const oldOrder = flattenBlockIds(editor.document);
+    applyingExternal.current = true;
+    try {
+      // External rewrites must stay out of the editor's undo history. VS Code
+      // owns undo at the document level, and its undos arrive here as updates;
+      // recording them as fresh undoable steps made the next cmd+z replay them
+      // forward again, so undo oscillated instead of walking back (#40).
+      editor.transact((tr) => {
+        tr.setMeta('addToHistory', false);
+        editor.replaceBlocks(editor.document, note.blocks as unknown as PartialBlock[]);
+      });
+    } finally {
+      applyingExternal.current = false;
+    }
+    setTitle(note.title);
+    setIcon(noteIconForStorage(note.icon));
+
+    // Block ids are stable across external rewrites, so the caret can go back
+    // where it was whenever its block survived the change — and to the
+    // nearest surviving neighbor when it didn't (undo removes the very block
+    // the caret sat in).
+    const target = caretTargetAfterRewrite(
+      oldOrder,
+      cursor.block.id,
+      (id) => editor.getBlock(id) !== undefined
+    );
+    if (target) {
+      editor.setTextCursorPosition(target, 'end');
+      editor.focus();
+    }
+  }, [externalRevision, note, editor]);
 
   const getFileItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
     (await searchWorkspaceFiles(query)).map((file) => ({
@@ -173,20 +257,103 @@ export function NoteEditor({
     }
   };
 
+  /**
+   * The `.bn-toggle-wrapper` of the toggle block holding the cursor, or null
+   * when the cursor isn't in one. Toggleable headings and toggleListItems both
+   * render one; the wrapper holds only the toggle's own title, since child
+   * blocks live in a sibling `.bn-block-group`.
+   */
+  const toggleWrapperAtCursor = (): HTMLElement | null => {
+    const blockEl = document.querySelector(
+      `[data-id="${CSS.escape(editor.getTextCursorPosition().block.id)}"]`
+    );
+    return blockEl?.querySelector<HTMLElement>('.bn-toggle-wrapper') ?? null;
+  };
+
+  /** True when the collapsed cursor sits after the last character of `content`. */
+  const cursorAtEndOf = (content: Element): boolean => {
+    const selection = window.getSelection();
+    if (!selection?.isCollapsed || !selection.anchorNode) return false;
+    if (!content.contains(selection.anchorNode)) return false;
+    const rest = document.createRange();
+    rest.setStart(selection.anchorNode, selection.anchorOffset);
+    rest.setEndAfter(content);
+    return rest.toString().length === 0;
+  };
+
+  /** Add an empty first child to a toggle and put the cursor in it. */
+  const enterToggleBody = (): void => {
+    const block = editor.getTextCursorPosition().block;
+    const firstChild = block.children[0];
+    if (firstChild) {
+      const [inserted] = editor.insertBlocks([{ type: 'paragraph' }], firstChild, 'before');
+      if (inserted) editor.setTextCursorPosition(inserted, 'end');
+      return;
+    }
+    const created = editor.updateBlock(block, { children: [{ type: 'paragraph' }] }).children[0];
+    if (created) editor.setTextCursorPosition(created.id, 'end');
+  };
+
+  /**
+   * Notion-style toggle keys. Mod+Enter opens or closes the toggle holding the
+   * cursor; plain Enter at the end of an open toggle's title drops into its
+   * body instead of creating a sibling after it.
+   *
+   * Open/closed state lives in localStorage behind BlockNote's own click
+   * handler and no editor command exposes it, so this clicks the same button —
+   * that keeps the stored state, the `data-show-children` attribute and the
+   * "add block" affordance in sync instead of adding a second source of truth.
+   */
+  const onToggleKeyDown = (event: KeyboardEvent<HTMLDivElement>): boolean => {
+    if (event.key !== 'Enter' || event.shiftKey || event.altKey) return false;
+    // An open suggestion menu owns Enter for picking its highlighted item.
+    if (document.querySelector('.bn-suggestion-menu')) return false;
+
+    const wrapper = toggleWrapperAtCursor();
+    if (!wrapper) return false;
+
+    if (event.metaKey || event.ctrlKey) {
+      wrapper.querySelector<HTMLButtonElement>('.bn-toggle-button')?.click();
+      return true;
+    }
+
+    const content = wrapper.querySelector('.bn-inline-content');
+    if (wrapper.getAttribute('data-show-children') !== 'true') return false;
+    if (!content || !cursorAtEndOf(content)) return false;
+    enterToggleBody();
+    return true;
+  };
+
+  // Superscript and subscript are mutually exclusive, so turning one on clears
+  // the other rather than nesting `<sup>` inside `<sub>`.
+  const toggleVertical = (style: 'superscript' | 'subscript'): void => {
+    const other = style === 'superscript' ? 'subscript' : 'superscript';
+    if (editor.getActiveStyles()[other]) editor.removeStyles({ [other]: true });
+    editor.toggleStyles({ [style]: true });
+  };
+
   // Slack-style code formatting: Mod+Shift+C toggles inline code on the
   // selection, Mod+Shift+Alt+C toggles the selected blocks into a code block.
-  // Runs in the capture phase so nothing inside ProseMirror can consume the
-  // event first. event.code is used because Alt+C produces a different
-  // event.key on macOS.
-  const onFormattingKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.code !== 'KeyC') return;
+  // Mod+Shift+. and Mod+Shift+, toggle superscript and subscript. Runs in the
+  // capture phase so nothing inside ProseMirror can consume the event first.
+  // event.code is used because Alt+C produces a different event.key on macOS,
+  // and because Shift turns "." and "," into ">" and "<".
+  const onEditorKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (onToggleKeyDown(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
+    const action = {
+      KeyC: () => (event.altKey ? toggleCodeBlock() : editor.toggleStyles({ code: true })),
+      Period: () => toggleVertical('superscript'),
+      Comma: () => toggleVertical('subscript'),
+    }[event.code];
+    if (!action) return;
     event.preventDefault();
     event.stopPropagation();
-    if (event.altKey) {
-      toggleCodeBlock();
-    } else {
-      editor.toggleStyles({ code: true });
-    }
+    action();
   };
 
   return (
@@ -215,12 +382,15 @@ export function NoteEditor({
           }}
         />
       </div>
-      <div onKeyDownCapture={onFormattingKeyDown}>
+      <div onKeyDownCapture={onEditorKeyDown}>
         <BlockNoteView
           editor={editor}
           theme={isDark ? 'dark' : 'light'}
           slashMenu={false}
-          onChange={() => emit(title, icon)}
+          onChange={() => {
+            if (applyingExternal.current) return;
+            emit(title, icon);
+          }}
         >
           <SuggestionMenuController triggerCharacter="@" getItems={getFileItems} />
           {/* Replaces the default slash menu to add the "Page" item; the

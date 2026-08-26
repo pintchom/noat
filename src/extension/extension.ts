@@ -100,10 +100,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   };
 
   // Notes open to the side by default so the note sits next to your code.
+  // If the note is already open in some group, focus that tab instead of
+  // opening a duplicate.
   context.subscriptions.push(
     vscode.commands.registerCommand('noat.openNote', async (absPath: string) => {
-      await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(absPath), {
-        viewColumn: vscode.ViewColumn.Beside,
+      const uri = vscode.Uri.file(absPath);
+      const existing = vscode.window.tabGroups.all.find((group) =>
+        group.tabs.some(
+          (tab) => tab.input instanceof vscode.TabInputCustom && tab.input.uri.fsPath === uri.fsPath
+        )
+      );
+      await vscode.commands.executeCommand('vscode.open', uri, {
+        viewColumn: existing ? existing.viewColumn : vscode.ViewColumn.Beside,
       });
     })
   );

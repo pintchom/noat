@@ -2,10 +2,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { assetFileFromUrl } from '../core/assets';
 import { resolveNoteIcon } from '../core/display-icons';
-import { NOTE_EXTENSION, parseNote, titleToFileName } from '../core/note';
+import { NOTE_EXTENSION, type NoteFile, parseNote, titleToFileName } from '../core/note';
 import { listAllNotes } from '../core/note-listing';
-import { getNotesRoot } from '../core/paths';
+import { getAssetsDir, getNotesRoot } from '../core/paths';
 import { noteToPdf } from '../core/pdf-export';
 import { repoKeyToLabel } from '../core/repo-key';
 import { NoteEditorProvider } from './note-editor';
@@ -38,6 +39,43 @@ async function pickNote(noatHome: string): Promise<string | undefined> {
     { placeHolder: 'Which note do you want to export as PDF?' }
   );
   return picked ? path.join(getNotesRoot(noatHome), picked.notePath) : undefined;
+}
+
+type Block = NoteFile['blocks'][number];
+
+// PDFKit can only draw PNG and JPEG; other asset types keep their label rendering.
+const ASSET_MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+};
+
+/**
+ * Swap store-asset image URLs for data URLs so noteToPdf (pure, no fs
+ * access) can draw them. Missing or non-embeddable assets are left as-is and
+ * render as a muted label.
+ */
+async function inlineAssetImages(blocks: Block[], assetsDir: string): Promise<Block[]> {
+  return Promise.all(
+    blocks.map(async (block) => {
+      const record = block as { type?: string; props?: { url?: string }; children?: Block[] };
+      const file = record.type === 'image' ? assetFileFromUrl(record.props?.url ?? '') : undefined;
+      const mime = file ? ASSET_MIME[file.split('.').pop() ?? ''] : undefined;
+      const data = mime
+        ? await fs.readFile(path.join(assetsDir, file as string)).catch(() => undefined)
+        : undefined;
+      const children = record.children?.length
+        ? await inlineAssetImages(record.children, assetsDir)
+        : record.children;
+      return {
+        ...block,
+        children,
+        ...(data && {
+          props: { ...record.props, url: `data:${mime};base64,${data.toString('base64')}` },
+        }),
+      } as Block;
+    })
+  );
 }
 
 async function defaultSaveUri(fileName: string): Promise<vscode.Uri> {
@@ -75,7 +113,8 @@ export async function exportNoteAsPdf(noatHome: string, node?: NoatNode): Promis
       title: `NOAT: exporting "${note.title}" to PDF…`,
     },
     async () => {
-      const pdf = await noteToPdf(note);
+      const blocks = await inlineAssetImages(note.blocks, getAssetsDir(noatHome));
+      const pdf = await noteToPdf({ ...note, blocks });
       await fs.writeFile(target.fsPath, pdf);
     }
   );

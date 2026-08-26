@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { ASSET_URL_PREFIX, assetFileName } from '../core/assets';
 import type {
   HostToWebviewMessage,
   NoteLinkResult,
@@ -10,7 +11,7 @@ import type {
 import { sameNoteJson } from '../core/note';
 import { rankNoteLinks } from '../core/note-link-search';
 import { type NoteListing, listAllNotes, resolveNotePath } from '../core/note-listing';
-import { getNoatHome } from '../core/paths';
+import { getAssetsDir, getNoatHome } from '../core/paths';
 import { repoKeyToLabel } from '../core/repo-key';
 import { WorkspaceFileSearch, pickFileViewColumn, resolveWorkspacePath } from './workspace-files';
 
@@ -48,6 +49,25 @@ function toNoteLinkResult(listing: NoteListing): NoteLinkResult {
 async function searchLinkableNotes(noatHome: string, query: string): Promise<NoteLinkResult[]> {
   const listings = await listAllNotes(noatHome);
   return rankNoteLinks(listings, query, MAX_NOTE_RESULTS).map(toNoteLinkResult);
+}
+
+/** Write an uploaded file into the store's assets dir; returns its asset URL. */
+async function saveAsset(
+  assetsDir: string,
+  name: string,
+  dataBase64: string
+): Promise<string | undefined> {
+  try {
+    const fileName = assetFileName(name, randomBytes(4).toString('hex'));
+    await fs.mkdir(assetsDir, { recursive: true });
+    await fs.writeFile(path.join(assetsDir, fileName), Buffer.from(dataBase64, 'base64'));
+    return `${ASSET_URL_PREFIX}${fileName}`;
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      `NOAT: could not save the file: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return undefined;
+  }
 }
 
 /** Follow a noteLink chip: open the linked note beside this one. */
@@ -100,10 +120,15 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    const noatHome = getNoatHome();
+    const assetsDir = getAssetsDir(noatHome);
     const webview = webviewPanel.webview;
     webview.options = {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, 'dist')],
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.context.extensionUri, 'dist'),
+        vscode.Uri.file(assetsDir),
+      ],
     };
     webview.html = this.buildHtml(webview);
 
@@ -122,8 +147,17 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
       }, AUTO_SAVE_MS);
     };
 
-    const applyWebviewEdit = async (text: string): Promise<void> => {
-      if (text === document.getText()) return;
+    const applyWebviewEdit = async (rawText: string): Promise<void> => {
+      // Match the document's trailing-newline convention. Serialized notes end
+      // with "\n", but save participants (files.trimFinalNewlines etc.) may
+      // strip it on every autosave — and each strip is its own undo step, so
+      // undoing one visible change took two cmd+z presses (#40).
+      const docText = document.getText();
+      const text =
+        !docText.endsWith('\n') && docText.length > 0 && rawText.endsWith('\n')
+          ? rawText.slice(0, -1)
+          : rawText;
+      if (text === docText) return;
       lastWebviewText = text;
       const edit = new vscode.WorkspaceEdit();
       const fullRange = new vscode.Range(0, 0, document.lineCount, 0);
@@ -152,12 +186,14 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
     });
 
     const fileSearch = new WorkspaceFileSearch();
-    const noatHome = getNoatHome();
+    // Base URI the webview prepends to asset file names; images can only load
+    // through asWebviewUri (the CSP allows cspSource, not file:).
+    const assetsBaseUri = webview.asWebviewUri(vscode.Uri.file(assetsDir)).toString();
 
     webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
       switch (message.type) {
         case 'ready':
-          post({ type: 'init', text: document.getText() });
+          post({ type: 'init', text: document.getText(), assetsBaseUri });
           break;
         case 'edit':
           void applyWebviewEdit(message.text);
@@ -177,6 +213,11 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
           break;
         case 'openNote':
           void openLinkedNote(noatHome, message.notePath);
+          break;
+        case 'saveAsset':
+          void saveAsset(assetsDir, message.name, message.dataBase64).then((url) => {
+            post({ type: 'assetSaved', requestId: message.requestId, url });
+          });
           break;
       }
     });
@@ -201,7 +242,7 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource} data:; img-src ${webview.cspSource} data:; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource} data:; img-src ${webview.cspSource} https: data:; script-src 'nonce-${nonce}';">
   <link href="${styleUri}" rel="stylesheet">
   <title>NOAT Note</title>
 </head>
