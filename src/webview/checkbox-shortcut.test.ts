@@ -9,6 +9,7 @@ import {
   defaultInlineContentSpecs,
   defaultStyleSpecs,
 } from '@blocknote/core';
+import type { Transaction } from 'prosemirror-state';
 import { expect, test } from 'vitest';
 import { nestedBackspace } from './nested-backspace';
 import { smartArrows } from './smart-arrows';
@@ -37,19 +38,18 @@ const schema = BlockNoteSchema.create({
   },
 });
 
-type SchemaEditor = BlockNoteEditor<typeof schema>;
-
-function typeChar(editor: SchemaEditor, char: string): boolean {
+function typeChar(editor: BlockNoteEditor, char: string): boolean {
   const view = editor._tiptapEditor.view;
   const from = view.state.selection.from;
-  const handled = view.someProp('handleTextInput', (f) => f(view, from, from, char));
+  const noop = (): Transaction => view.state.tr.insertText(char, from);
+  const handled = view.someProp('handleTextInput', (f) => f(view, from, from, char, noop));
   if (!handled) {
     view.dispatch(view.state.tr.insertText(char, from));
   }
-  return handled ?? false;
+  return !!handled;
 }
 
-function makeEditor(): SchemaEditor {
+function makeEditor(): BlockNoteEditor {
   const editor = BlockNoteEditor.create({
     schema,
     initialContent: [{ id: 'a', type: 'paragraph', content: '' }],
