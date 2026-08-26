@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { codeBlockOptions } from '@blocknote/code-block';
 import {
   BlockNoteEditor,
   BlockNoteSchema,
@@ -8,7 +9,6 @@ import {
   defaultInlineContentSpecs,
   defaultStyleSpecs,
 } from '@blocknote/core';
-import { codeBlockOptions } from '@blocknote/code-block';
 import { expect, test } from 'vitest';
 import { nestedBackspace } from './nested-backspace';
 import { smartArrows } from './smart-arrows';
