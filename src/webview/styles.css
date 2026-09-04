@@ -227,6 +227,68 @@ body {
   font-size: 0.85em;
 }
 
+/*
+ * Math. KaTeX draws in `currentColor`, so formulas follow the IDE theme on
+ * their own; these rules only cover the click-to-edit affordance and the
+ * raw-LaTeX inputs.
+ */
+.noat-math,
+.noat-equation {
+  /* Buttons, so the formulas are keyboard-reachable -- strip the chrome. */
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.noat-math {
+  padding: 0 2px;
+  border-radius: 3px;
+}
+
+.noat-math:hover {
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
+}
+
+.noat-equation {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.noat-equation:hover {
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
+}
+
+/* An equation with no LaTeX yet renders to nothing -- give it a click target. */
+.noat-equation:empty::before {
+  content: "Empty equation";
+  color: var(--vscode-descriptionForeground, #888);
+  font-style: italic;
+}
+
+.noat-math-input,
+.noat-equation-input {
+  font-family: var(--vscode-editor-font-family, ui-monospace), ui-monospace, "SF Mono",
+    "Cascadia Code", "JetBrains Mono", "Fira Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  font-size: 0.9em;
+  color: var(--vscode-input-foreground, inherit);
+  background: var(--vscode-input-background, rgba(128, 128, 128, 0.12));
+  border: 1px solid var(--vscode-focusBorder, rgba(128, 128, 128, 0.4));
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.noat-equation-input {
+  display: block;
+  width: 100%;
+  resize: vertical;
+}
+
 /* Let the editor sit on the IDE background instead of BlockNote's own. */
 .bn-editor {
   background: transparent !important;

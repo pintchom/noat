@@ -13,6 +13,10 @@ Stop taking notes in stray `.md` files or a separate app. NOAT gives you a real 
 
 Notes open as normal editor tabs with a Notion-style block editor: type `/` for headings, checklists, tables, quotes, and code blocks (with syntax highlighting that uses your editor font). Format code the way you would in Slack: `Cmd+Shift+C` wraps the selection in inline code, `Cmd+Shift+Alt+C` turns the selected blocks into a code block. Native dirty-state and undo, plus auto-save moments after you stop typing.
 
+### LaTeX math
+
+Write `$E = mc^2$` inline or `$$` for a display equation and it renders with KaTeX, locally, with no network. Click a formula to edit its LaTeX. Both are also in the `/` menu under "Math". Formulas round-trip through markdown, so agents can write them over MCP, and PDF export typesets them rather than printing the source.
+
 ### Link to code with `@`
 
 Type `@` in a note to fuzzy-search tracked and non-ignored files in your workspace and insert a link chip. Files changed in your working tree appear first. Click a chip and the file opens in the column beside your note. Paths are stored repo-relative, so links keep working across machines.
@@ -32,7 +36,7 @@ Results merge via reciprocal rank fusion. Everything runs locally — no API key
 
 ### Share notes as PDF
 
-Run `NOAT: Export Note as PDF` from the command palette (or right-click a note in the sidebar, or use the PDF icon on an open note tab) to save any note as a polished PDF — headings, lists, checklists, tables, code blocks, quotes, and links included. Everything renders locally; nothing leaves your machine.
+Run `NOAT: Export Note as PDF` from the command palette (or right-click a note in the sidebar, or use the PDF icon on an open note tab) to save any note as a polished PDF — headings, lists, checklists, tables, code blocks, quotes, links, and typeset math included. Everything renders locally; nothing leaves your machine.
 
 ### Agent access via MCP
 
