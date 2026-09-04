@@ -124,3 +124,24 @@ describe('blocksToPlainText', () => {
     expect(blocksToPlainText(withChips)).toBe('See Ideas and src/core/note.ts');
   });
 });
+
+describe('blocksToPlainText math', () => {
+  it('indexes the LaTeX of inline math and equation blocks', () => {
+    const withMath: Blocks = [
+      {
+        id: 'p',
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Einstein: ', styles: {} },
+          { type: 'math', props: { latex: 'E = mc^2' } },
+        ],
+      },
+      // No `content` at all -- the LaTeX only reaches search via props.
+      { id: 'e', type: 'equation', props: { latex: '\\int_0^1 x\\,dx' } },
+    ] as unknown as Blocks;
+
+    const text = blocksToPlainText(withMath);
+    expect(text).toContain('E = mc^2');
+    expect(text).toContain('\\int_0^1 x\\,dx');
+  });
+});

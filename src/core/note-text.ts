@@ -11,11 +11,12 @@ function inlineText(content: unknown): string {
         type?: string;
         text?: string;
         content?: unknown;
-        props?: { path?: string; title?: string };
+        props?: { path?: string; title?: string; latex?: string };
       };
       if (typeof inline.text === 'string') return inline.text;
       if (inline.type === 'fileLink') return inline.props?.path ?? '';
       if (inline.type === 'noteLink') return inline.props?.title ?? '';
+      if (inline.type === 'math') return inline.props?.latex ?? '';
       if (inline.content) return inlineText(inline.content);
       return '';
     })
@@ -25,6 +26,11 @@ function inlineText(content: unknown): string {
 function blockText(block: Block): string[] {
   const parts: string[] = [];
   const content = (block as { content?: unknown }).content;
+  // Equation blocks hold no content -- their LaTeX lives in props, and without
+  // this the formula would be invisible to search and to snippets.
+  if (block.type === 'equation') {
+    parts.push((block as { props?: { latex?: string } }).props?.latex ?? '');
+  }
   if (Array.isArray(content)) {
     parts.push(inlineText(content));
   } else if (

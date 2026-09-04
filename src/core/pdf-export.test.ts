@@ -46,6 +46,12 @@ describe('inlineRuns', () => {
     expect(runs[0]).toMatchObject({ text: 'docs', link: 'https://example.com', underline: true });
   });
 
+  it('carries inline math as latex, with the source as its fallback text', () => {
+    const runs = inlineRuns([{ type: 'math', props: { latex: 'E = mc^2' } }]);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ math: 'E = mc^2', text: '$E = mc^2$' });
+  });
+
   it('turns fileLink chips into code-styled path text', () => {
     const runs = inlineRuns([{ type: 'fileLink', props: { path: 'src/core/store.ts' } }]);
     expect(runs).toHaveLength(1);
@@ -135,5 +141,51 @@ describe('noteToPdf', () => {
     const raw = pdf.toString('latin1');
     const pageCount = (raw.match(/\/Type \/Page[^s]/g) ?? []).length;
     expect(pageCount).toBeGreaterThan(1);
+  });
+});
+
+describe('noteToPdf math', () => {
+  // Content streams are deflated, so the tell that math was typeset is bulk:
+  // glyph outlines are far bigger than the same note without them.
+  const sizeOf = async (blocks: Blocks): Promise<number> => (await noteToPdf(note(blocks))).length;
+
+  it('typesets an equation block instead of leaving a blank gap', async () => {
+    const empty = await sizeOf([{ id: 'e', type: 'equation', props: { latex: '' } }] as Blocks);
+    const typeset = await sizeOf([
+      { id: 'e', type: 'equation', props: { latex: 'a^2 + b^2 = c^2' } },
+    ] as unknown as Blocks);
+    expect(typeset).toBeGreaterThan(empty + 1000);
+  });
+
+  it('keeps underlines and links working on a line laid out around math', async () => {
+    // Laying the line out here bypasses pdfkit's wrapper, which is what
+    // normally supplies the width its underline and link annotations need.
+    const blocks: Blocks = [
+      {
+        id: 'p',
+        type: 'paragraph',
+        content: [
+          text('underlined', { underline: true }),
+          text(' struck', { strike: true }),
+          { type: 'link', href: 'https://example.com', content: [text(' linked')] },
+          { type: 'math', props: { latex: '\\pi' } },
+        ],
+      },
+    ] as unknown as Blocks;
+    await expect(noteToPdf(note(blocks))).resolves.toBeInstanceOf(Buffer);
+  });
+
+  it('typesets inline math inside a paragraph', async () => {
+    const plain = await sizeOf([
+      { id: 'p', type: 'paragraph', content: [text('mass is ')] },
+    ] as Blocks);
+    const withMath = await sizeOf([
+      {
+        id: 'p',
+        type: 'paragraph',
+        content: [text('mass is '), { type: 'math', props: { latex: 'E = mc^2' } }],
+      },
+    ] as unknown as Blocks);
+    expect(withMath).toBeGreaterThan(plain + 1000);
   });
 });

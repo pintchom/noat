@@ -1,6 +1,13 @@
 import * as fs from 'node:fs';
 import esbuild from 'esbuild';
 
+// mathjax-full reads its own version out of package.json with an eval'd
+// require + __dirname, which resolves next to the bundle instead of the
+// package once inlined. Defining PACKAGE_VERSION is the supported bypass.
+const mathjaxVersion = JSON.parse(
+  fs.readFileSync('node_modules/mathjax-full/package.json', 'utf8')
+).version;
+
 const watch = process.argv.includes('--watch');
 const production = process.argv.includes('--production');
 
@@ -32,6 +39,7 @@ const extensionCtx = await esbuild.context({
   // Prefer ESM package entries: jsonc-parser's UMD/CJS build uses dynamic
   // requires that esbuild can't inline, breaking the bundle at runtime.
   mainFields: ['module', 'main'],
+  define: { PACKAGE_VERSION: JSON.stringify(mathjaxVersion) },
 });
 
 const mcpCtx = await esbuild.context({

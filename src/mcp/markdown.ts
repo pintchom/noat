@@ -31,11 +31,12 @@ const ANCHOR_PATTERN = /^:\d+(?::\d+)?$/;
 /**
  * Replace NOAT-specific inline content (fileLink and noteLink chips) with
  * plain text so the default BlockNote schema can convert blocks to markdown.
- * fileLink becomes code-styled text; noteLink becomes its title. Superscript
- * and subscript become Pandoc's ^x^ / ~x~ markers -- the default schema has no
- * such styles and the converter throws on any it does not know. A line
- * anchor right after a fileLink chip merges into the chip's path text — two
- * adjacent code spans would render as ambiguous markdown.
+ * fileLink becomes code-styled text; noteLink becomes its title; inline math
+ * becomes `$latex$`. Superscript and subscript become Pandoc's ^x^ / ~x~
+ * markers -- the default schema has no such styles and the converter throws on
+ * any it does not know. A line anchor right after a fileLink chip merges into
+ * the chip's path text — two adjacent code spans would render as ambiguous
+ * markdown.
  */
 function sanitizeInline(content: unknown): unknown {
   if (!Array.isArray(content)) return content;
@@ -48,7 +49,7 @@ function sanitizeInline(content: unknown): unknown {
       type?: string;
       text?: string;
       styles?: { code?: boolean; superscript?: boolean; subscript?: boolean };
-      props?: { path?: string; title?: string };
+      props?: { path?: string; title?: string; latex?: string };
       content?: unknown;
     };
     if (inline.type === 'text' && (inline.styles?.superscript || inline.styles?.subscript)) {
@@ -63,6 +64,10 @@ function sanitizeInline(content: unknown): unknown {
     }
     if (inline.type === 'noteLink') {
       acc.push({ type: 'text', text: inline.props?.title ?? '', styles: {} });
+      return acc;
+    }
+    if (inline.type === 'math') {
+      acc.push({ type: 'text', text: `$${inline.props?.latex ?? ''}$`, styles: {} });
       return acc;
     }
     if (inline.type === 'link') {
@@ -96,6 +101,32 @@ const PATH_CODE_PATTERN = /^(?<path>[\w@.-]+(?:\/[\w@.-]+)+\.\w{1,10})(?<anchor>
 // before we see it -- from being read as a subscript one character in.
 const VERTICAL_PATTERN = /(?<![\^~])\^([^\s^]+)\^|(?<![\^~])~([^\s~]+)~/g;
 
+/**
+ * Inline `$...$`, Pandoc's rule. The `(?<!\$)` / `(?!\$)` guards keep the inner
+ * `$x$` of a `$$x$$` display equation from matching -- that paragraph has to
+ * survive inline promotion intact so promoteBlock below can turn it into an
+ * equation block. Forbidding whitespace against either delimiter, and a digit
+ * after the closing one, keeps prices ("$5 or $6", "$5-$10") out of math.
+ * Mirrors INLINE_MATH_PATTERN in src/webview/math-input.ts.
+ */
+const MATH_PATTERN = /(?<!\$)\$(?!\$)([^$\n\s]|[^$\n\s][^$\n]*[^$\n\s])\$(?![\d$])/g;
+
+/** Split `$...$` runs out of a plain text run into inline math nodes. */
+function splitMath(inline: { text?: string; styles?: unknown }): unknown[] {
+  const text = inline.text ?? '';
+  const out: unknown[] = [];
+  let last = 0;
+  for (const match of text.matchAll(MATH_PATTERN)) {
+    const at = match.index ?? 0;
+    if (at > last) out.push({ ...inline, text: text.slice(last, at) });
+    out.push({ type: 'math', props: { latex: match[1] ?? '' } });
+    last = at + match[0].length;
+  }
+  if (out.length === 0) return [inline];
+  if (last < text.length) out.push({ ...inline, text: text.slice(last) });
+  return out;
+}
+
 /** Split ^sup^ / ~sub~ runs out of a plain text run. */
 function splitVertical(inline: { text?: string; styles?: unknown }): unknown[] {
   const text = inline.text ?? '';
@@ -118,9 +149,10 @@ function splitVertical(inline: { text?: string; styles?: unknown }): unknown[] {
 }
 
 /**
- * Promote path-shaped inline code into fileLink chips — the inverse of
- * sanitizeInline, so chips survive a markdown round-trip. A line anchor
- * stays behind as code text; chips store only the file path.
+ * Promote path-shaped inline code into fileLink chips and `$...$` runs into
+ * inline math — the inverse of sanitizeInline, so both survive a markdown
+ * round-trip. A line anchor stays behind as code text; chips store only the
+ * file path.
  */
 function promoteInline(content: unknown): unknown {
   if (!Array.isArray(content)) return content;
@@ -128,7 +160,15 @@ function promoteInline(content: unknown): unknown {
     if (typeof item !== 'object' || item === null) return [item];
     const inline = item as { type?: string; text?: string; styles?: { code?: boolean } };
     if (inline.type !== 'text') return [item];
-    if (inline.styles?.code !== true) return splitVertical(inline);
+    if (inline.styles?.code !== true) {
+      // Math first: VERTICAL_PATTERN's ^x^ rule would otherwise eat the carets
+      // inside a formula like $a^2^b$.
+      return splitMath(inline).flatMap((part) =>
+        (part as { type?: string }).type === 'math'
+          ? [part]
+          : splitVertical(part as { text?: string; styles?: unknown })
+      );
+    }
     const groups = inline.text?.match(PATH_CODE_PATTERN)?.groups;
     if (!groups?.path) return [item];
     const chip = { type: 'fileLink', props: { path: groups.path } };
@@ -136,6 +176,39 @@ function promoteInline(content: unknown): unknown {
       ? [chip, { type: 'text', text: groups.anchor, styles: { code: true } }]
       : [chip];
   });
+}
+
+// A whole paragraph that is nothing but `$$...$$`. Agents writing markdown
+// reach for this far more often than a ```math fence, so it has to land as an
+// equation block too.
+const DISPLAY_MATH_PATTERN = /^\$\$([\s\S]+)\$\$$/;
+
+const MATH_LANGUAGES = new Set(['math', 'latex', 'tex']);
+
+/** Carry a block's already-mapped children onto its replacement. */
+function withChildren(next: Block, from: Block): Block {
+  const children = (from as { children?: Block[] }).children;
+  return Array.isArray(children) ? ({ ...next, children } as Block) : next;
+}
+
+/** Inverse of sanitizeBlock: ```math fences and `$$...$$` paragraphs. */
+function promoteBlock(block: Block): Block {
+  const equation = (latex: string): Block =>
+    withChildren({ id: block.id, type: 'equation', props: { latex } } as unknown as Block, block);
+
+  const content = (block as { content?: unknown }).content;
+  if (!Array.isArray(content) || content.length > 1) return block;
+  // An empty fence is an equation whose LaTeX has not been written yet.
+  const only = (content[0] ?? { type: 'text', text: '' }) as { type?: string; text?: string };
+  if (only.type !== 'text' || typeof only.text !== 'string') return block;
+
+  if (block.type === 'codeBlock') {
+    const language = (block as { props?: { language?: string } }).props?.language ?? '';
+    return MATH_LANGUAGES.has(language) ? equation(only.text) : block;
+  }
+  if (block.type !== 'paragraph') return block;
+  const latex = only.text.trim().match(DISPLAY_MATH_PATTERN)?.[1];
+  return latex === undefined ? block : equation(latex.trim());
 }
 
 /**
@@ -184,14 +257,35 @@ function mapBlockTree(
   });
 }
 
+/**
+ * Equation blocks leave as a ```math fence rather than a `$$...$$` paragraph:
+ * display LaTeX is routinely multi-line (aligned environments, cases,
+ * matrices) and remark-stringify cannot carry newlines through a paragraph
+ * without mangling them. GitHub renders the same fence as display math.
+ */
+function sanitizeBlock(block: Block): Block {
+  if (block.type === 'equation') {
+    const latex = (block as { props?: { latex?: string } }).props?.latex ?? '';
+    return withChildren(
+      {
+        id: block.id,
+        type: 'codeBlock',
+        props: { language: 'math' },
+        // An empty text node is not a valid ProseMirror child.
+        content: latex.length > 0 ? [{ type: 'text', text: latex, styles: {} }] : [],
+      } as unknown as Block,
+      block
+    );
+  }
+  const props = (block as { props?: unknown }).props;
+  return {
+    ...block,
+    ...(props !== undefined && { props: sanitizeProps(block.type, props) }),
+  } as Block;
+}
+
 function sanitizeBlocks(blocks: Block[]): Block[] {
-  return mapBlockTree(blocks, sanitizeInline, (block) => {
-    const props = (block as { props?: unknown }).props;
-    return {
-      ...block,
-      ...(props !== undefined && { props: sanitizeProps(block.type, props) }),
-    } as Block;
-  });
+  return mapBlockTree(blocks, sanitizeInline, sanitizeBlock);
 }
 
 /**
@@ -245,5 +339,5 @@ export async function blocksToMarkdown(blocks: NoteFile['blocks']): Promise<stri
 
 export async function markdownToBlocks(markdown: string): Promise<NoteFile['blocks']> {
   const blocks = await getEditor().tryParseMarkdownToBlocks(markdown);
-  return ensureIds(mapBlockTree(blocks as unknown as Block[], promoteInline));
+  return ensureIds(mapBlockTree(blocks as unknown as Block[], promoteInline, promoteBlock));
 }

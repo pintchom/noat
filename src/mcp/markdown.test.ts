@@ -8,7 +8,7 @@ interface InlineItem {
   type?: string;
   text?: string;
   styles?: { code?: boolean };
-  props?: { path?: string };
+  props?: { path?: string; latex?: string };
 }
 
 /** Flatten every inline item in a block tree (rich text and table cells). */
@@ -291,5 +291,91 @@ describe('superscript and subscript', () => {
   it('leaves strikethrough alone', async () => {
     const blocks = await markdownToBlocks('~~gone~~');
     expect(runs(blocks)).toEqual([{ type: 'text', text: 'gone', styles: { strike: true } }]);
+  });
+});
+
+describe('math', () => {
+  const formulas = (blocks: Block[]) =>
+    allInline(blocks)
+      .filter((item) => item.type === 'math')
+      .map((item) => item.props?.latex);
+
+  const equations = (blocks: Block[]) =>
+    blocks
+      .filter((block) => block.type === 'equation')
+      .map((block) => (block as { props?: { latex?: string } }).props?.latex);
+
+  it('promotes $...$ to inline math', async () => {
+    const blocks = await markdownToBlocks('Einstein wrote $E = mc^2$ in 1905.');
+    expect(formulas(blocks)).toEqual(['E = mc^2']);
+  });
+
+  it('leaves prices alone', async () => {
+    const blocks = await markdownToBlocks('It costs $5 or $6, maybe $5-$10.');
+    expect(formulas(blocks)).toEqual([]);
+  });
+
+  it('leaves dollars inside inline code alone', async () => {
+    const blocks = await markdownToBlocks('Run `echo $x$y` first.');
+    expect(formulas(blocks)).toEqual([]);
+  });
+
+  it('does not let the superscript rule eat carets inside a formula', async () => {
+    const blocks = await markdownToBlocks('Pythagoras: $a^2^ + b^2^ = c^2^$.');
+    expect(formulas(blocks)).toEqual(['a^2^ + b^2^ = c^2^']);
+  });
+
+  it('round-trips inline math through markdown', async () => {
+    const original: Block[] = prepareBlocks([
+      {
+        id: '1',
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'so ', styles: {} },
+          { type: 'math', props: { latex: '\\int_0^1 x\\,dx' } },
+          { type: 'text', text: ' holds', styles: {} },
+        ],
+      },
+    ] as Block[]);
+
+    const markdown = await blocksToMarkdown(original);
+    expect(markdown).toContain('$\\int_0^1 x\\,dx$');
+    expect(formulas(await markdownToBlocks(markdown))).toEqual(['\\int_0^1 x\\,dx']);
+  });
+
+  it('round-trips an equation block through a math fence', async () => {
+    const original: Block[] = prepareBlocks([
+      { id: '1', type: 'equation', props: { latex: 'a^2 + b^2 = c^2' } },
+    ] as unknown as Block[]);
+
+    const markdown = await blocksToMarkdown(original);
+    expect(markdown).toContain('```math');
+    expect(equations(await markdownToBlocks(markdown))).toEqual(['a^2 + b^2 = c^2']);
+  });
+
+  it('keeps multi-line equation LaTeX intact', async () => {
+    const latex = ['\\begin{aligned}', 'a &= b \\\\', 'c &= d', '\\end{aligned}'].join('\n');
+    const original: Block[] = prepareBlocks([
+      { id: '1', type: 'equation', props: { latex } },
+    ] as unknown as Block[]);
+
+    const markdown = await blocksToMarkdown(original);
+    expect(equations(await markdownToBlocks(markdown))).toEqual([latex]);
+  });
+
+  it('round-trips an equation whose LaTeX has not been written yet', async () => {
+    const original: Block[] = prepareBlocks([
+      { id: '1', type: 'equation', props: { latex: '' } },
+    ] as unknown as Block[]);
+
+    // An empty text node is not a valid ProseMirror child, so the empty fence
+    // has to carry no content at all -- and still come back as an equation.
+    const markdown = await blocksToMarkdown(original);
+    expect(equations(await markdownToBlocks(markdown))).toEqual(['']);
+  });
+
+  it('promotes an agent-written $$...$$ paragraph to an equation block', async () => {
+    const blocks = await markdownToBlocks('Here it is:\n\n$$E = mc^2$$\n');
+    expect(equations(blocks)).toEqual(['E = mc^2']);
   });
 });

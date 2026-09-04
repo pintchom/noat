@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { type MathBox, typesetMath } from './math-pdf';
 import type { NoteFile } from './note';
 
 type Block = NoteFile['blocks'][number];
@@ -59,6 +60,8 @@ interface InlineRun {
   strike: boolean;
   color?: string;
   link?: string;
+  /** LaTeX source, for runs that are typeset math rather than text. */
+  math?: string;
 }
 
 function fontFor(run: Pick<InlineRun, 'bold' | 'italic' | 'code'>): string {
@@ -80,7 +83,7 @@ export function inlineRuns(content: unknown, inherited: Partial<InlineRun> = {})
       href?: string;
       content?: unknown;
       styles?: Record<string, unknown>;
-      props?: { path?: string; title?: string };
+      props?: { path?: string; title?: string; latex?: string };
     };
     if (inline.type === 'link') {
       return inlineRuns(inline.content, { ...inherited, link: inline.href, underline: true });
@@ -113,6 +116,24 @@ export function inlineRuns(content: unknown, inherited: Partial<InlineRun> = {})
               underline: false,
               strike: false,
               color: LINK_COLOR,
+            },
+          ]
+        : [];
+    }
+    if (inline.type === 'math') {
+      const latex = inline.props?.latex ?? '';
+      // `text` is both the fallback if typesetting fails and what plain-text
+      // consumers (table cells, empty-content checks) see.
+      return latex.length > 0
+        ? [
+            {
+              text: `$${latex}$`,
+              bold: false,
+              italic: false,
+              code: true,
+              underline: false,
+              strike: false,
+              math: latex,
             },
           ]
         : [];
@@ -162,6 +183,7 @@ type BlockProps = {
   name?: string;
   caption?: string;
   previewWidth?: number;
+  latex?: string;
 };
 
 function propsOf(block: Block): BlockProps {
@@ -196,6 +218,142 @@ export async function noteToPdf(
     if (doc.y + height > bottomLimit() && height < pageCapacity) doc.addPage();
   };
 
+  /** pdfkit puts a run's *top* at the y it is given; its baseline is one ascender below. */
+  const ascenderOf = (fontSize: number): number => {
+    const font = (doc as unknown as { _font?: { ascender?: number } })._font;
+    return ((font?.ascender ?? 718) / 1000) * fontSize;
+  };
+
+  /**
+   * pdfkit lays out its own lines and never reports where a run ended, so a
+   * line holding math is laid out here instead: measure every token, break
+   * lines by width, then place each word and each formula at a known baseline.
+   */
+  const renderRunsWithMath = (
+    runs: InlineRun[],
+    x: number,
+    width: number,
+    options: { size?: number; color?: string; align?: string }
+  ): void => {
+    const size = options.size ?? BODY_SIZE;
+    const baseColor = options.color ?? TEXT_COLOR;
+    type Token = { run: InlineRun; text: string; width: number; box?: MathBox };
+
+    // Match the leading pdfkit would give this paragraph, so a line holding
+    // math is not set tighter than the lines around it.
+    doc.font('Helvetica').fontSize(size);
+    const textAscent = ascenderOf(size);
+    const textLine = doc.currentLineHeight(true) + 2;
+
+    const tokens: Token[] = [];
+    for (const run of runs) {
+      const box = run.math !== undefined ? typesetMath(run.math, false, size) : undefined;
+      if (box) {
+        tokens.push({ run, text: '', width: box.width, box });
+        continue;
+      }
+      doc.font(fontFor(run)).fontSize(run.code ? size - 1 : size);
+      for (const part of toWinAnsi(run.text).split(/(\s+)/)) {
+        if (part.length > 0) tokens.push({ run, text: part, width: doc.widthOfString(part) });
+      }
+    }
+    if (tokens.length === 0) {
+      doc.moveDown(0.7);
+      return;
+    }
+
+    const lines: Token[][] = [[]];
+    let used = 0;
+    for (const token of tokens) {
+      if (used + token.width > width && used > 0) {
+        lines.push([]);
+        used = 0;
+        // A space that lands on a line break is consumed by the break.
+        if (!token.box && token.text.trim().length === 0) continue;
+      }
+      lines[lines.length - 1]?.push(token);
+      used += token.width;
+    }
+
+    // One height for the whole paragraph, not per line: uniform leading reads
+    // better than a single line opening up around a tall fraction, and it is
+    // what `mathDrop` assumes when it places a list marker.
+    const ascent = Math.max(textAscent, ...tokens.map((token) => token.box?.ascent ?? 0));
+    const descent = Math.max(
+      textLine - textAscent,
+      ...tokens.map((token) => token.box?.depth ?? 0)
+    );
+    const lineHeight = ascent + descent;
+
+    const align = options.align ?? 'left';
+    for (const line of lines) {
+      ensureRoom(lineHeight);
+      const lineWidth = line.reduce((sum, token) => sum + token.width, 0);
+      const slack = width - lineWidth;
+      const top = doc.y;
+      let cx = x + (align === 'center' ? slack / 2 : align === 'right' ? slack : 0);
+      for (const token of line) {
+        if (token.box) {
+          token.box.draw(doc, cx, top + ascent, token.run.color ?? baseColor);
+        } else {
+          // Whitespace tokens are drawn too: skipping them would break an
+          // underline, strikethrough or link annotation at every word gap.
+          const fontSize = token.run.code ? size - 1 : size;
+          doc
+            .font(fontFor(token.run))
+            .fontSize(fontSize)
+            .fillColor(token.run.color ?? baseColor);
+          // `textWidth`/`wordCount` are normally supplied by pdfkit's line
+          // wrapper. Laying out the line here bypasses it, and without them
+          // underlines are drawn to a NaN width and links annotate nothing.
+          const textOptions = {
+            lineBreak: false,
+            underline: token.run.underline,
+            strike: token.run.strike,
+            link: token.run.link ?? null,
+            textWidth: token.width,
+            wordCount: 1,
+          };
+          doc.text(token.text, cx, top + ascent - ascenderOf(fontSize), textOptions);
+        }
+        cx += token.width;
+      }
+      doc.y = top + lineHeight;
+    }
+  };
+
+  /** How far a line sinks when inline math is taller than the text around it. */
+  const mathDrop = (runs: InlineRun[], size: number): number => {
+    doc.font('Helvetica').fontSize(size);
+    const textAscent = ascenderOf(size);
+    return Math.max(
+      0,
+      ...runs.map((run) =>
+        run.math === undefined ? 0 : (typesetMath(run.math, false, size)?.ascent ?? 0) - textAscent
+      )
+    );
+  };
+
+  /** A display equation, centred and shrunk to fit if it is wider than the column. */
+  const renderEquation = (latex: string, x: number, width: number): void => {
+    const first = typesetMath(latex, true, BODY_SIZE);
+    const box =
+      first && first.width > width
+        ? typesetMath(latex, true, (BODY_SIZE * width) / first.width)
+        : first;
+    if (!box) {
+      renderCodeBlock(latex, x, width);
+      return;
+    }
+    const height = box.ascent + box.depth;
+    doc.moveDown(0.4);
+    ensureRoom(height + 6);
+    const top = doc.y;
+    box.draw(doc, x + Math.max(0, (width - box.width) / 2), top + box.ascent, TEXT_COLOR);
+    doc.y = top + height;
+    doc.moveDown(0.4);
+  };
+
   const renderRuns = (
     runs: InlineRun[],
     x: number,
@@ -203,6 +361,10 @@ export async function noteToPdf(
     options: { size?: number; color?: string; align?: string } = {}
   ): void => {
     const size = options.size ?? BODY_SIZE;
+    if (runs.some((run) => run.math !== undefined)) {
+      renderRunsWithMath(runs, x, width, options);
+      return;
+    }
     const visible = runs
       .map((run) => ({ ...run, text: toWinAnsi(run.text) }))
       .filter((run) => run.text.length > 0);
@@ -243,7 +405,10 @@ export async function noteToPdf(
     const indent = Math.max(16, doc.widthOfString(prefix) + 6);
     ensureRoom(BODY_SIZE * 1.5);
     const y = doc.y;
-    doc.fillColor(prefixColor).text(prefix, x, y, { width: indent, lineBreak: false });
+    doc.fillColor(prefixColor).text(prefix, x, y + mathDrop(runs, BODY_SIZE), {
+      width: indent,
+      lineBreak: false,
+    });
     if (runs.length > 0 && plainTextOf(runs).trim().length > 0) {
       doc.y = y;
       renderRuns(runs, x + indent, width - indent);
@@ -424,6 +589,14 @@ export async function noteToPdf(
           doc.moveDown(0.3);
           renderCodeBlock(plainTextOf(runs), x, width);
           doc.moveDown(0.3);
+          break;
+        }
+        // Equation blocks carry no content, so the default branch below would
+        // render them as nothing.
+        case 'equation': {
+          const latex = props.latex ?? '';
+          if (latex.trim().length === 0) doc.moveDown(0.5);
+          else renderEquation(latex, x, width);
           break;
         }
         case 'quote': {

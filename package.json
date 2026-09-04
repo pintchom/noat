@@ -275,6 +275,7 @@
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "mathjax-full": "^3.2.1",
     "minisearch": "^7.2.0",
     "pdfkit": "^0.19.1",
     "zod": "^3.24.0"
@@ -289,6 +290,7 @@
     "@mantine/core": "^8.3.18",
     "@mantine/hooks": "^8.3.18",
     "@tiptap/core": "^3.13.0",
+    "@types/katex": "^0.16.8",
     "@types/node": "^20.14.0",
     "@types/pdfkit": "^0.17.6",
     "@types/react": "^18.3.0",
@@ -296,6 +298,7 @@
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.2.0",
     "esbuild": "^0.24.0",
+    "katex": "^0.18.5",
     "prosemirror-highlight": "^0.15.2",
     "prosemirror-state": "^1.4.4",
     "react": "^18.3.1",

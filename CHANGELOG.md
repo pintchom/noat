@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- LaTeX math, rendered with KaTeX. Type `$E = mc^2$` for an inline formula or `$$` for a standalone display equation; click either one to edit its LaTeX and see it re-render. Both are in the `/` menu under "Math". Formulas survive the markdown round trip, so agents can write `$...$` and `$$...$$` through MCP and read them back. Prices like "$5 or $6" are left alone. PDF export typesets them too, via MathJax.
 - `/page` slash command, Notion-style: pick another note from a search menu and insert an inline link chip (styled like `@` file references). Clicking the chip opens the linked note beside the current one.
 - The `-->` → `→` smart arrow now also works inside inline code and code blocks, which TipTap's input rules skip
 - The code formatting shortcuts moved from `Cmd+Shift+S` / `Cmd+Shift+Alt+S` to `Cmd+Shift+C` / `Cmd+Shift+Alt+C` (`Ctrl` on Windows/Linux), so they no longer shadow the `Cmd+Shift+S` Search Notes keybinding while a note is focused

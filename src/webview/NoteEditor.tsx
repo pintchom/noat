@@ -1,13 +1,4 @@
-import { codeBlockOptions } from '@blocknote/code-block';
-import {
-  BlockNoteSchema,
-  type PartialBlock,
-  createCodeBlockSpec,
-  createStyleSpec,
-  defaultBlockSpecs,
-  defaultInlineContentSpecs,
-  defaultStyleSpecs,
-} from '@blocknote/core';
+import { type PartialBlock, insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import { SuggestionMenu, filterSuggestionItems } from '@blocknote/core/extensions';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
@@ -16,83 +7,20 @@ import {
   getDefaultReactSlashMenuItems,
   useCreateBlockNote,
 } from '@blocknote/react';
-import { createParser } from 'prosemirror-highlight/shiki';
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { NOTE_ICON, noteIconForStorage, resolveNoteIcon } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
-import { FileLink } from './FileLink';
 import { NoteIconPicker } from './NoteIconPicker';
-import { NoteLink } from './NoteLink';
 import { resolveAssetUrl, saveAsset } from './asset-client';
 import { caretTargetAfterRewrite, flattenBlockIds } from './caret-fallback';
 import { searchWorkspaceFiles } from './file-search-client';
+import { mathInput } from './math-input';
 import { nestedBackspace } from './nested-backspace';
 import { searchNotes } from './note-search-client';
+import { schema } from './schema';
 import { smartArrows } from './smart-arrows';
 import '@blocknote/mantine/style.css';
-
-/**
- * Code block spec with Shiki syntax highlighting. The default spec ships
- * without a highlighter (BlockNote keeps it out to save bundle size), so
- * code blocks would render as plain text.
- *
- * BlockNote's highlight plugin reuses a parser cached under the well-known
- * `Symbol.for('blocknote.shikiParser')` before building its own single-theme
- * one. Registering a dual-theme parser before the highlighter promise
- * resolves makes every token carry both palettes (GitHub Light inline,
- * GitHub Dark via the `--shiki-dark` custom property), so styles.css can
- * follow IDE theme changes live without re-highlighting.
- */
-const codeBlock = createCodeBlockSpec({
-  ...codeBlockOptions,
-  createHighlighter: async () => {
-    const highlighter = await codeBlockOptions.createHighlighter();
-    const parser = createParser(highlighter, {
-      themes: { light: 'github-light', dark: 'github-dark' },
-      defaultColor: 'light',
-    });
-    (globalThis as Record<symbol, unknown>)[Symbol.for('blocknote.shikiParser')] = parser;
-    return highlighter;
-  },
-});
-
-/**
- * Superscript and subscript, for exponents and chemistry. BlockNote ships
- * neither, so they are custom boolean styles rendering plain `<sup>`/`<sub>`.
- * The tags carry the meaning, so `toExternalHTML` is left to default and the
- * markdown bridge in src/mcp/markdown.ts recognises them by tag name.
- */
-const verticalStyle = (tag: 'sup' | 'sub', type: 'superscript' | 'subscript') =>
-  createStyleSpec(
-    { type, propSchema: 'boolean' },
-    {
-      render: () => {
-        const dom = document.createElement(tag);
-        return { dom, contentDOM: dom };
-      },
-      parse: (element) => (element.tagName.toLowerCase() === tag ? true : undefined),
-    }
-  );
-
-const superscript = verticalStyle('sup', 'superscript');
-const subscript = verticalStyle('sub', 'subscript');
-
-const schema = BlockNoteSchema.create({
-  blockSpecs: {
-    ...defaultBlockSpecs,
-    codeBlock,
-  },
-  inlineContentSpecs: {
-    ...defaultInlineContentSpecs,
-    fileLink: FileLink,
-    noteLink: NoteLink,
-  },
-  styleSpecs: {
-    ...defaultStyleSpecs,
-    superscript,
-    subscript,
-  },
-});
+import 'katex/dist/katex.min.css';
 
 // Trigger for the /page note picker. Opened programmatically (never typed),
 // mirroring how BlockNote's own Emoji slash item opens the ":" picker.
@@ -132,7 +60,7 @@ export function NoteEditor({
 
   const editor = useCreateBlockNote({
     schema,
-    extensions: [smartArrows, nestedBackspace],
+    extensions: [smartArrows, nestedBackspace, mathInput],
     // Local images (picked, pasted, or dropped) are stored in the note
     // store's assets dir; notes keep store-relative URLs that only resolve
     // to loadable webview URIs at render time.
@@ -224,8 +152,45 @@ export function NoteEditor({
     },
   };
 
+  // Both math items open an empty LaTeX field that takes focus immediately.
+  // The slash menu otherwise closes on the editor's next selection change,
+  // which never comes once focus has left the editor -- so it would hang over
+  // the very field you are meant to type into.
+  const closeSlashMenu = (): void => editor.getExtension(SuggestionMenu)?.closeMenu();
+
+  // Own group rather than "Basic blocks":  the slash menu draws a header per
+  // contiguous run of items, so reusing a default group name from the end of
+  // the list renders that header twice.
+  const mathItems: DefaultReactSuggestionItem[] = [
+    {
+      title: 'Equation',
+      subtext: 'Display LaTeX on its own line',
+      aliases: ['equation', 'latex', 'math', 'formula', 'tex'],
+      group: 'Math',
+      icon: <span>{'\u2211'}</span>,
+      onItemClick: () => {
+        closeSlashMenu();
+        insertOrUpdateBlockForSlashMenu(editor, { type: 'equation', props: { latex: '' } });
+      },
+    },
+    {
+      title: 'Inline equation',
+      subtext: 'LaTeX inside a line of text',
+      aliases: ['inline equation', 'inline latex', 'inline math', 'formula', 'tex'],
+      group: 'Math',
+      icon: <span>{'\u0192'}</span>,
+      onItemClick: () => {
+        closeSlashMenu();
+        editor.insertInlineContent([{ type: 'math', props: { latex: '' } }, ' ']);
+      },
+    },
+  ];
+
   const getSlashMenuItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
-    filterSuggestionItems([...getDefaultReactSlashMenuItems(editor), pageLinkItem], query);
+    filterSuggestionItems(
+      [...getDefaultReactSlashMenuItems(editor), pageLinkItem, ...mathItems],
+      query
+    );
 
   const getNoteItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
     (await searchNotes(query)).map((linked) => ({
