@@ -1,12 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.1.10 — 2026-10-14
 
 - LaTeX math, rendered with KaTeX. Type `$E = mc^2$` for an inline formula or `$$` for a standalone display equation; click either one to edit its LaTeX and see it re-render. Both are in the `/` menu under "Math". Formulas survive the markdown round trip, so agents can write `$...$` and `$$...$$` through MCP and read them back. Prices like "$5 or $6" are left alone. Select pasted LaTeX and hit `Cmd+Shift+M` (or the ∑ button in the formatting toolbar) to render it in place — a whole `$$…$$` paragraph becomes a display equation, anything else becomes an inline formula. PDF export typesets them too, via MathJax.
 - `/page` slash command, Notion-style: pick another note from a search menu and insert an inline link chip (styled like `@` file references). Clicking the chip opens the linked note beside the current one.
 - The `-->` → `→` smart arrow now also works inside inline code and code blocks, which TipTap's input rules skip
 - The code formatting shortcuts moved from `Cmd+Shift+S` / `Cmd+Shift+Alt+S` to `Cmd+Shift+C` / `Cmd+Shift+Alt+C` (`Ctrl` on Windows/Linux), so they no longer shadow the `Cmd+Shift+S` Search Notes keybinding while a note is focused
-
+- Local images: pick, paste, or drop an image into a note; files are stored in the note store's assets folder
+- Superscript and subscript (`Cmd+Shift+.` / `Cmd+Shift+,`), round-tripped through markdown in Pandoc style (`^sup^`, `~sub~`)
+- Notion-style toggle keys: `Cmd+Enter` opens or closes the toggle under the caret, and `Enter` at the end of an open toggle's title drops into its body
+- Opening a note that's already open focuses its tab instead of opening a duplicate
+- Fast typing no longer drops the last few letters and makes the caret jump
+- The caret stays put when the note changes outside the editor (undo, agent writes, autosave reformats), moving to the nearest surviving block if its own block was removed
+- VS Code undo walks back one change per `Cmd+Z` instead of oscillating or needing two presses
+- Backspacing a nested block keeps its siblings nested
+- Numbered list markers are back
+- Highlights written through MCP no longer produce unreadable same-color text
 - Code blocks and inline code no longer fall back to serif'd Courier/Times when the IDE's editor font can't be resolved inside the webview — they now use the same modern monospace fallback stack as file link chips
 
 ## 0.1.9 — 2026-07-16
