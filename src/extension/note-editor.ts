@@ -8,11 +8,11 @@ import type {
   NoteLinkResult,
   WebviewToHostMessage,
 } from '../core/editor-messages';
-import { sameNoteJson } from '../core/note';
 import { rankNoteLinks } from '../core/note-link-search';
 import { type NoteListing, listAllNotes, resolveNotePath } from '../core/note-listing';
 import { getAssetsDir, getNoatHome } from '../core/paths';
 import { repoKeyToLabel } from '../core/repo-key';
+import { WebviewEchoes } from '../core/webview-echoes';
 import { WorkspaceFileSearch, pickFileViewColumn, resolveWorkspacePath } from './workspace-files';
 
 const AUTO_SAVE_MS = 400;
@@ -132,8 +132,7 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
     };
     webview.html = this.buildHtml(webview);
 
-    // Text we last applied on behalf of the webview — used to break echo loops.
-    let lastWebviewText: string | undefined;
+    const echoes = new WebviewEchoes();
     let saveTimer: NodeJS.Timeout | undefined;
 
     const post = (message: HostToWebviewMessage): void => {
@@ -157,12 +156,16 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
         !docText.endsWith('\n') && docText.length > 0 && rawText.endsWith('\n')
           ? rawText.slice(0, -1)
           : rawText;
-      if (text === docText) return;
-      lastWebviewText = text;
+      if (text === echoes.expectedText(docText)) return;
+      echoes.writing(text);
       const edit = new vscode.WorkspaceEdit();
       const fullRange = new vscode.Range(0, 0, document.lineCount, 0);
       edit.replace(document.uri, fullRange, text);
-      await vscode.workspace.applyEdit(edit);
+      try {
+        await vscode.workspace.applyEdit(edit);
+      } finally {
+        echoes.settled(text);
+      }
       scheduleAutoSave();
     };
 
@@ -170,18 +173,7 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
       if (event.document.uri.toString() !== document.uri.toString()) return;
       if (event.contentChanges.length === 0) return;
       const text = document.getText();
-      // Skip the echo of an edit the webview itself just made.
-      if (text === lastWebviewText) return;
-      // Skip formatting-only rewrites of the webview's own edit. Autosave runs
-      // through VS Code, so save participants (editor.formatOnSave,
-      // files.insertFinalNewline, trailing-whitespace trimming) can rewrite the
-      // bytes without changing the note. Posting an update for those remounts
-      // BlockNote and drops the caret on every autosave.
-      if (lastWebviewText !== undefined && sameNoteJson(text, lastWebviewText)) {
-        // Adopt the normalized text so later exact-match checks stay cheap.
-        lastWebviewText = text;
-        return;
-      }
+      if (echoes.isOwnChange(text)) return;
       post({ type: 'update', text });
     });
 
