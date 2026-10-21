@@ -4,9 +4,9 @@ import { z } from 'zod';
 import type { NoteFile } from '../core/note';
 import { listAllNotes, readNoteByPath } from '../core/note-listing';
 import {
+  type SectionSlice,
   blocksToSections,
   replaceSection,
-  type SectionSlice,
   sliceSection,
 } from '../core/note-text';
 import { getNoatHome } from '../core/paths';
@@ -145,8 +145,7 @@ function selectBlocks(
   return { ok: true, blocks: slice.blocks, matchedHeading: slice.heading };
 }
 
-const SECTION_DESCRIPTION =
-  'Heading text (or unique prefix like "3.2") of the section to replace';
+const SECTION_DESCRIPTION = 'Heading text (or unique prefix like "3.2") of the section to replace';
 
 const REPLACE_SECTION_DESCRIPTION =
   'Replace one section of a note, leaving the rest untouched. The section is the same range read_note returns for that section: the heading itself plus everything up to the next heading of the same or higher level (sub-sections included). The replacement should therefore include the heading (send a different heading to rename it, or none to drop it). Prefer this over replace_note_content when editing part of a large note.';

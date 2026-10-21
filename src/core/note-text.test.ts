@@ -107,7 +107,16 @@ describe('replaceSection', () => {
     const result = replaceSection(blocks, '2.1', [paragraph('np', 'x')]);
     expect(result.kind).toBe('match');
     if (result.kind !== 'match') return;
-    expect(result.blocks.map((b) => b.id)).toEqual(['p0', 'h1', 'p1', 'h1a', 'p1a', 'h2', 'p2', 'np']);
+    expect(result.blocks.map((b) => b.id)).toEqual([
+      'p0',
+      'h1',
+      'p1',
+      'h1a',
+      'p1a',
+      'h2',
+      'p2',
+      'np',
+    ]);
   });
 
   it('passes through misses without touching the note', () => {
