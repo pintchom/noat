@@ -75,7 +75,14 @@ export interface NoteSection {
 }
 
 export type SectionSlice =
-  | { kind: 'match'; heading: string; blocks: NoteFile['blocks'] }
+  | {
+      kind: 'match';
+      heading: string;
+      blocks: NoteFile['blocks'];
+      /** Top-level block range of the section: [start, end). */
+      start: number;
+      end: number;
+    }
   | { kind: 'ambiguous'; candidates: string[] }
   | { kind: 'not-found'; headings: string[] };
 
@@ -111,7 +118,35 @@ export function sliceSection(blocks: NoteFile['blocks'], section: string): Secti
   const end = headings.find(
     (heading) => heading.index > start.index && heading.level <= start.level
   );
-  return { kind: 'match', heading: start.text, blocks: blocks.slice(start.index, end?.index) };
+  const endIndex = end?.index ?? blocks.length;
+  return {
+    kind: 'match',
+    heading: start.text,
+    blocks: blocks.slice(start.index, endIndex),
+    start: start.index,
+    end: endIndex,
+  };
+}
+
+/**
+ * Swap one section (heading included, sub-sections included — the same range
+ * `sliceSection` returns) for `replacement`, leaving every other block untouched.
+ */
+export function replaceSection(
+  blocks: NoteFile['blocks'],
+  section: string,
+  replacement: NoteFile['blocks']
+):
+  | { kind: 'match'; heading: string; removed: number; blocks: NoteFile['blocks'] }
+  | Exclude<SectionSlice, { kind: 'match' }> {
+  const slice = sliceSection(blocks, section);
+  if (slice.kind !== 'match') return slice;
+  return {
+    kind: 'match',
+    heading: slice.heading,
+    removed: slice.end - slice.start,
+    blocks: [...blocks.slice(0, slice.start), ...replacement, ...blocks.slice(slice.end)],
+  };
 }
 
 /** Split a note into heading-delimited sections for embedding. */
