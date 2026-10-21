@@ -3,7 +3,12 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import type { NoteFile } from '../core/note';
 import { listAllNotes, readNoteByPath } from '../core/note-listing';
-import { blocksToSections, sliceSection } from '../core/note-text';
+import {
+  blocksToSections,
+  replaceSection,
+  type SectionSlice,
+  sliceSection,
+} from '../core/note-text';
 import { getNoatHome } from '../core/paths';
 import { SearchEngine } from '../core/search/engine';
 import { initStore } from '../core/store';
@@ -30,12 +35,13 @@ update these notes — treat them as the user's living working memory.
 Notes are BlockNote documents (JSON block trees). read_note returns both the
 raw blocks and a lossy markdown rendering — prefer markdown for reading;
 request blocks when you need exact structure. Writes (create_note,
-append_to_note, replace_note_content) accept markdown, which is converted to
-blocks server-side. Markdown supports headings, lists, checkboxes (- [ ]),
+append_to_note, replace_note_content, replace_note_section) accept markdown,
+which is converted to blocks server-side. Markdown supports headings, lists, checkboxes (- [ ]),
 code fences, tables, quotes, bold/italic/links.
 
 For large notes, call get_note_outline first (headings + section sizes), then
-read_note with section to fetch only the part you need.
+read_note with section to fetch only the part you need. To edit one part,
+use replace_note_section instead of rewriting the whole note.
 
 One custom inline element exists: "fileLink" (a clickable chip pointing to a
 workspace-relative file path). In markdown renderings it appears as inline
@@ -68,13 +74,14 @@ update these notes — treat them as the user's living working memory.
 ## Note content (BlockNote JSON)
 
 Notes are BlockNote block trees. read_note returns the full blocks array.
-Writes (create_note, append_to_note, replace_note_content) accept a "blocks"
-array — send BlockNote JSON directly. This preserves rich formatting that
+Writes (create_note, append_to_note, replace_note_content,
+replace_note_section) accept a "blocks" array — send BlockNote JSON directly. This preserves rich formatting that
 markdown cannot represent: text colors, background highlights, alignment,
 nested children, tables, and custom inline elements.
 
 For large notes, call get_note_outline first (headings + section sizes), then
-read_note with section to fetch only the part you need.
+read_note with section to fetch only the part you need. To edit one part,
+use replace_note_section instead of rewriting the whole note.
 
 Block shape: each block has "type", optional "id" (assigned if missing),
 "props" (type-specific, e.g. textColor, backgroundColor, textAlignment on
@@ -117,6 +124,15 @@ function parseBlocks(blocks: McpBlock[]): NoteFile['blocks'] {
   return prepareBlocks(blocks as NoteFile['blocks']);
 }
 
+function sectionError(
+  section: string,
+  miss: Exclude<SectionSlice, { kind: 'match' }>
+): Record<string, unknown> {
+  return miss.kind === 'not-found'
+    ? { error: `No heading matches "${section}"`, headings: miss.headings }
+    : { error: `"${section}" is ambiguous`, candidates: miss.candidates };
+}
+
 function selectBlocks(
   blocks: NoteFile['blocks'],
   section: string | undefined
@@ -125,20 +141,15 @@ function selectBlocks(
   | { ok: false; error: Record<string, unknown> } {
   if (!section) return { ok: true, blocks };
   const slice = sliceSection(blocks, section);
-  if (slice.kind === 'not-found') {
-    return {
-      ok: false,
-      error: { error: `No heading matches "${section}"`, headings: slice.headings },
-    };
-  }
-  if (slice.kind === 'ambiguous') {
-    return {
-      ok: false,
-      error: { error: `"${section}" is ambiguous`, candidates: slice.candidates },
-    };
-  }
+  if (slice.kind !== 'match') return { ok: false, error: sectionError(section, slice) };
   return { ok: true, blocks: slice.blocks, matchedHeading: slice.heading };
 }
+
+const SECTION_DESCRIPTION =
+  'Heading text (or unique prefix like "3.2") of the section to replace';
+
+const REPLACE_SECTION_DESCRIPTION =
+  'Replace one section of a note, leaving the rest untouched. The section is the same range read_note returns for that section: the heading itself plus everything up to the next heading of the same or higher level (sub-sections included). The replacement should therefore include the heading (send a different heading to rename it, or none to drop it). Prefer this over replace_note_content when editing part of a large note.';
 
 async function main(): Promise<void> {
   const noatHome = getNoatHome();
@@ -314,6 +325,32 @@ async function main(): Promise<void> {
         return json({ replaced: notePath, blocks: prepared.length });
       }
     );
+
+    server.registerTool(
+      'replace_note_section',
+      {
+        description: REPLACE_SECTION_DESCRIPTION,
+        inputSchema: {
+          notePath: z.string(),
+          section: z.string().describe(SECTION_DESCRIPTION),
+          blocks: z.array(mcpBlockSchema),
+        },
+      },
+      async ({ notePath, section, blocks }) => {
+        const note = await readNoteByPath(noatHome, notePath);
+        const prepared = parseBlocks(blocks);
+        const replaced = replaceSection(note.blocks, section, prepared);
+        if (replaced.kind !== 'match') return json(sectionError(section, replaced));
+        await writeNoteFile(noatHome, notePath, { ...note, blocks: replaced.blocks });
+        await engine.updateNote(notePath);
+        return json({
+          replaced: notePath,
+          section: replaced.heading,
+          removedBlocks: replaced.removed,
+          addedBlocks: prepared.length,
+        });
+      }
+    );
   } else {
     server.registerTool(
       'create_note',
@@ -366,6 +403,32 @@ async function main(): Promise<void> {
         await writeNoteFile(noatHome, notePath, { ...note, blocks });
         await engine.updateNote(notePath);
         return json({ replaced: notePath, blocks: blocks.length });
+      }
+    );
+
+    server.registerTool(
+      'replace_note_section',
+      {
+        description: REPLACE_SECTION_DESCRIPTION,
+        inputSchema: {
+          notePath: z.string(),
+          section: z.string().describe(SECTION_DESCRIPTION),
+          markdown: z.string(),
+        },
+      },
+      async ({ notePath, section, markdown }) => {
+        const note = await readNoteByPath(noatHome, notePath);
+        const blocks = await markdownToBlocks(markdown);
+        const replaced = replaceSection(note.blocks, section, blocks);
+        if (replaced.kind !== 'match') return json(sectionError(section, replaced));
+        await writeNoteFile(noatHome, notePath, { ...note, blocks: replaced.blocks });
+        await engine.updateNote(notePath);
+        return json({
+          replaced: notePath,
+          section: replaced.heading,
+          removedBlocks: replaced.removed,
+          addedBlocks: blocks.length,
+        });
       }
     );
   }

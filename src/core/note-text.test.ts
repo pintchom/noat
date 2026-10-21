@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { NoteFile } from './note';
-import { blocksToPlainText, blocksToSections, sliceSection } from './note-text';
+import { blocksToPlainText, blocksToSections, replaceSection, sliceSection } from './note-text';
 
 type Blocks = NoteFile['blocks'];
 
@@ -87,6 +87,32 @@ describe('sliceSection', () => {
     expect(slice.kind).toBe('not-found');
     if (slice.kind !== 'not-found') return;
     expect(slice.headings).toEqual([]);
+  });
+});
+
+describe('replaceSection', () => {
+  it('swaps a section and its sub-sections, leaving the rest untouched', () => {
+    const result = replaceSection(blocks, '1. Setup', [
+      heading('new', 2, '1. Setup v2'),
+      paragraph('np', 'new body'),
+    ]);
+    expect(result.kind).toBe('match');
+    if (result.kind !== 'match') return;
+    expect(result.heading).toBe('1. Setup');
+    expect(result.removed).toBe(4);
+    expect(result.blocks.map((b) => b.id)).toEqual(['p0', 'new', 'np', 'h2', 'p2', 'h2a', 'p2a']);
+  });
+
+  it('replaces the last section through the end of the note', () => {
+    const result = replaceSection(blocks, '2.1', [paragraph('np', 'x')]);
+    expect(result.kind).toBe('match');
+    if (result.kind !== 'match') return;
+    expect(result.blocks.map((b) => b.id)).toEqual(['p0', 'h1', 'p1', 'h1a', 'p1a', 'h2', 'p2', 'np']);
+  });
+
+  it('passes through misses without touching the note', () => {
+    expect(replaceSection(blocks, 'refunds', []).kind).toBe('not-found');
+    expect(replaceSection(blocks, '1', []).kind).toBe('ambiguous');
   });
 });
 

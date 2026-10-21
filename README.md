@@ -51,6 +51,7 @@ A bundled MCP server exposes your notes to AI agents:
 | `create_note` | Create a note from markdown |
 | `append_to_note` | Append markdown to an existing note |
 | `replace_note_content` | Rewrite a note's content |
+| `replace_note_section` | Rewrite one heading's section, leave the rest untouched |
 | `get_current_repo_scope` | Map a working directory to its note scope |
 
 Agents write plain markdown; NOAT converts it to real editor blocks. In Cursor the server registers itself automatically — no configuration.
