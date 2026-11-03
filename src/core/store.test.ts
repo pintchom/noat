@@ -46,7 +46,7 @@ describe('initStore', () => {
   it('writes required gitignore entries', async () => {
     const content = await fs.readFile(path.join(noatHome, '.gitignore'), 'utf8');
     const lines = content.split('\n');
-    for (const entry of ['.cache/', '.index/', '.DS_Store', 'mcp/']) {
+    for (const entry of ['.cache/', '.index/', '.DS_Store', 'mcp/', 'site/']) {
       expect(lines).toContain(entry);
     }
   });

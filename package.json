@@ -129,6 +129,15 @@
         "command": "noat.exportPdf",
         "title": "NOAT: Export Note as PDF",
         "icon": "$(file-pdf)"
+      },
+      {
+        "command": "noat.publishNote",
+        "title": "NOAT: Publish Note to Web",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "noat.unpublishNote",
+        "title": "NOAT: Unpublish Note"
       }
     ],
     "keybindings": [
@@ -157,6 +166,24 @@
           "default": false,
           "markdownDescription": "Let MCP agents read and write notes as BlockNote JSON instead of markdown. Preserves colors, background highlights, file links, and other rich formatting that markdown conversion drops.",
           "order": 1
+        },
+        "noat.publish.repository": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Git repository that **NOAT: Publish Note to Web** pushes pages to, e.g. `https://github.com/you/notes.git`. Use an empty repo and turn on GitHub Pages (deploy from branch `main`). Asked for on first publish.",
+          "order": 2
+        },
+        "noat.publish.siteUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Public URL the publish repository is served at. Leave empty for GitHub repos — it's derived as `https://<owner>.github.io/<repo>/`. Set it for custom domains or other hosts.",
+          "order": 3
+        },
+        "noat.publish.autoUpdate": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Re-publish a published note automatically shortly after it's saved, so its web page stays current.",
+          "order": 4
         }
       }
     },
@@ -228,6 +255,16 @@
           "command": "noat.exportPdf",
           "when": "view == noatNotes && viewItem =~ /note/",
           "group": "4_share@1"
+        },
+        {
+          "command": "noat.publishNote",
+          "when": "view == noatNotes && viewItem =~ /note/",
+          "group": "4_share@2"
+        },
+        {
+          "command": "noat.unpublishNote",
+          "when": "view == noatNotes && viewItem =~ /note/",
+          "group": "4_share@3"
         }
       ],
       "editor/title": [
@@ -235,6 +272,11 @@
           "command": "noat.exportPdf",
           "when": "activeCustomEditorId == noat.noteEditor",
           "group": "navigation@1"
+        },
+        {
+          "command": "noat.publishNote",
+          "when": "activeCustomEditorId == noat.noteEditor",
+          "group": "navigation@2"
         }
       ],
       "commandPalette": [

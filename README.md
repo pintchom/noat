@@ -42,6 +42,18 @@ Results merge via reciprocal rank fusion. Everything runs locally — no API key
 
 Run `NOAT: Export Note as PDF` from the command palette (or right-click a note in the sidebar, or use the PDF icon on an open note tab) to save any note as a polished PDF — headings, lists, checklists, tables, code blocks, quotes, links, and typeset math included. Everything renders locally; nothing leaves your machine.
 
+### Publish notes as web pages
+
+Run `NOAT: Publish Note to Web` (globe icon on an open note, or right-click a note in the sidebar) to turn a note into a public web page, like Notion's "Publish to web". The link is copied to your clipboard.
+
+Pages are static HTML pushed to a git repository you own and served by GitHub Pages. No NOAT server is involved. Setup is one time:
+
+1. Create an empty **public** GitHub repo, e.g. `you/notes`.
+2. Publish a note. When NOAT asks, paste the repo URL. Pushing uses your normal git credentials.
+3. In the repo's Settings → Pages, set the source to "Deploy from a branch", `main`, `/ (root)`. NOAT offers a button that opens that page after your first publish.
+
+Pages live at `https://you.github.io/notes/<title>-<id>/`, and the URL stays the same if you rename the note. A published note re-publishes itself about 20 seconds after you stop editing (turn this off with `noat.publish.autoUpdate`). Links to other published notes become real links. Links to unpublished notes stay plain text, so publishing one note never exposes another. `NOAT: Unpublish Note` takes a page down. For a custom domain or another static host, set `noat.publish.siteUrl`.
+
 ### Agent access via MCP
 
 A bundled MCP server exposes your notes to AI agents:
@@ -106,7 +118,7 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 
 Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.
 
-Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Export Note as PDF`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`.
+Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Export Note as PDF`, `NOAT: Publish Note to Web`, `NOAT: Unpublish Note`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`.
 
 ## MCP setup outside Cursor
 
@@ -143,6 +155,7 @@ Everything lives in `~/.noat` (override with `NOAT_HOME`):
   .cache/                # embedding model cache (gitignored)
   .index/                # search indexes — derived, rebuildable (gitignored)
   mcp/                   # stable copy of the MCP server (gitignored)
+  site/                  # clone of your publish repo, if you publish notes (gitignored)
   notes/
     global/              # universal notes, nested folders allowed
     repos/<repo-key>/    # notes scoped to one repository

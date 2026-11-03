@@ -22,6 +22,7 @@ import { logError } from './log';
 import { registerMcpServer } from './mcp-registration';
 import { NoteEditorProvider } from './note-editor';
 import { type NoatNode, NotesDragAndDropController, NotesTreeProvider } from './notes-tree';
+import { SitePublisher } from './publish';
 import { showSearchPalette } from './search-palette';
 import { detectWorkspaceRepo } from './workspace-scope';
 
@@ -119,6 +120,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Hybrid search: keyword index warms immediately; the vector index (local
   // embedding model, ~25 MB one-time download) builds in the background.
   const searchEngine = new SearchEngine(noatHome);
+  const publisher = new SitePublisher(noatHome);
+  context.subscriptions.push(publisher);
   void searchEngine.ensureKeywordIndex();
   setTimeout(() => {
     void vscode.window.withProgress(
@@ -153,6 +156,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!filePath.startsWith(notesRoot + path.sep) || !filePath.endsWith('.noat.json')) return;
       tree.refresh();
       void searchEngine.updateNote(path.relative(notesRoot, filePath));
+      void publisher.noteSaved(filePath);
     })
   );
 
@@ -243,6 +247,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 
   register('noat.exportPdf', (node) => exportNoteAsPdf(noatHome, node));
+
+  register('noat.publishNote', (node) => publisher.publish(node));
+
+  register('noat.unpublishNote', (node) => publisher.unpublish(node));
 
   register('noat.openNotesRepo', async () => {
     const terminal = vscode.window.createTerminal({ name: 'NOAT store', cwd: noatHome });

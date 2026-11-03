@@ -28,6 +28,11 @@ export function getAssetsDir(noatHome: string): string {
   return path.join(noatHome, 'assets');
 }
 
+/** Local clone of the repository published notes are pushed to (see core/publish.ts). */
+export function getSiteDir(noatHome: string): string {
+  return path.join(noatHome, 'site');
+}
+
 export function getGlobalNotesDir(noatHome: string): string {
   return path.join(getNotesRoot(noatHome), 'global');
 }
