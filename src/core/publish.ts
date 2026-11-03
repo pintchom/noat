@@ -95,11 +95,34 @@ export function pageUrl(siteUrl: string, slug: string): string {
   return `${siteUrl.replace(/\/+$/, '')}/${slug}/`;
 }
 
+/** The shape pageSlug produces. Anything else could escape the site folder. */
+const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function isSafeSlug(slug: unknown): slug is string {
+  return typeof slug === 'string' && SAFE_SLUG.test(slug);
+}
+
+/** A page's folder. Throws on unsafe slugs rather than touch a path outside the site. */
+function pageDirOf(siteDir: string, slug: string): string {
+  if (!isSafeSlug(slug)) throw new Error(`Refusing unsafe page slug: ${JSON.stringify(slug)}`);
+  return path.join(siteDir, slug);
+}
+
+/**
+ * The manifest comes from the remote repository, so it is untrusted input:
+ * pages with a malformed slug (e.g. "../..") are dropped, never acted on.
+ */
 export async function readManifest(siteDir: string): Promise<SiteManifest> {
   try {
     const parsed = JSON.parse(await fs.readFile(path.join(siteDir, MANIFEST_FILE), 'utf8'));
     if (parsed?.version === 1 && typeof parsed.pages === 'object' && parsed.pages !== null) {
-      return parsed as SiteManifest;
+      const pages = Object.entries(parsed.pages as Record<string, unknown>).filter(
+        (entry): entry is [string, PublishedPage] => {
+          const page = entry[1] as Partial<PublishedPage> | null;
+          return typeof page === 'object' && page !== null && isSafeSlug(page.slug);
+        }
+      );
+      return { version: 1, pages: Object.fromEntries(pages) };
     }
   } catch {
     // Missing or unreadable: nothing published yet.
@@ -120,6 +143,8 @@ async function exists(file: string): Promise<boolean> {
  * this hard-resets rather than merging.
  */
 export async function syncSiteRepo(siteDir: string, remote: string): Promise<void> {
+  // git would parse a leading "-" as an option, not a URL.
+  if (remote.startsWith('-')) throw new Error(`Invalid publish repository: ${remote}`);
   const reinit = async (): Promise<void> => {
     await fs.rm(siteDir, { recursive: true, force: true });
     await fs.mkdir(siteDir, { recursive: true });
@@ -234,7 +259,7 @@ export async function buildSite(
     if (!found) continue;
     page.title = found.note.title;
     page.updatedAt = found.note.updatedAt;
-    const pageDir = path.join(siteDir, page.slug);
+    const pageDir = pageDirOf(siteDir, page.slug);
     await fs.mkdir(pageDir, { recursive: true });
     await fs.writeFile(path.join(pageDir, 'index.html'), noteToHtml(found.note, links));
   }
@@ -284,7 +309,7 @@ export async function removeFromManifest(
   const page = manifest.pages[noteId];
   if (!page) return undefined;
   delete manifest.pages[noteId];
-  await fs.rm(path.join(siteDir, page.slug), { recursive: true, force: true });
+  await fs.rm(pageDirOf(siteDir, page.slug), { recursive: true, force: true });
   return page;
 }
 

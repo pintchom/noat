@@ -256,7 +256,11 @@ export class SitePublisher implements vscode.Disposable {
     const title = manifest.pages[noteId]?.title || 'Untitled';
     const confirmed = await vscode.window.showWarningMessage(
       `Unpublish "${title}"?`,
-      { modal: true, detail: 'Its public link stops working once the site redeploys.' },
+      {
+        modal: true,
+        detail:
+          "Its public link stops working once the site redeploys. Earlier versions stay in the publish repository's git history; delete or rewrite that repository to erase them.",
+      },
       'Unpublish'
     );
     if (confirmed !== 'Unpublish') return;

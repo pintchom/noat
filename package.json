@@ -170,18 +170,21 @@
         "noat.publish.repository": {
           "type": "string",
           "default": "",
+          "scope": "application",
           "markdownDescription": "Git repository that **NOAT: Publish Note to Web** pushes pages to, e.g. `https://github.com/you/notes.git`. Use an empty repo and turn on GitHub Pages (deploy from branch `main`). Asked for on first publish.",
           "order": 2
         },
         "noat.publish.siteUrl": {
           "type": "string",
           "default": "",
+          "scope": "application",
           "markdownDescription": "Public URL the publish repository is served at. Leave empty for GitHub repos — it's derived as `https://<owner>.github.io/<repo>/`. Set it for custom domains or other hosts.",
           "order": 3
         },
         "noat.publish.autoUpdate": {
           "type": "boolean",
           "default": true,
+          "scope": "application",
           "markdownDescription": "Re-publish a published note automatically shortly after it's saved, so its web page stays current.",
           "order": 4
         }
