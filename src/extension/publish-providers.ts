@@ -3,15 +3,24 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import {
   NetlifyAuthError,
-  type NetlifySite,
   NetlifySiteGoneError,
   createSite,
+  deleteSite,
   deployDirectory,
   digestDirectory,
   signIn,
+  siteNameFor,
 } from '../core/netlify';
 import { getNetlifySiteDir, getSiteDir } from '../core/paths';
-import { githubPagesSettingsUrl, githubPagesUrl, pushSite, syncSiteRepo } from '../core/publish';
+import {
+  type SiteLayout,
+  type SiteManifest,
+  githubPagesSettingsUrl,
+  githubPagesUrl,
+  pageUrl,
+  pushSite,
+  syncSiteRepo,
+} from '../core/publish';
 
 const NETLIFY_TOKEN_KEY = 'noat.netlify.token';
 const SIGN_IN_TIMEOUT_MS = 10 * 60_000;
@@ -20,12 +29,17 @@ const SIGN_IN_TIMEOUT_MS = 10 * 60_000;
 export interface PublishConnection {
   /** Directory holding the built site and its manifest. */
   siteDir: string;
-  /** Public base URL pages live under. */
-  siteUrl: string;
+  /** Public URL of the page with `slug`. */
+  pageUrl(slug: string): string;
   /** Bring siteDir up to date with what's live. */
   pull(): Promise<void>;
+  /**
+   * Runs after the manifest changes and before pages are built, e.g. to
+   * create hosting for new pages. Returns how pages are laid out.
+   */
+  prepare?(manifest: SiteManifest): Promise<SiteLayout>;
   /** Make siteDir's current contents live. */
-  push(message: string): Promise<void>;
+  push(message: string, manifest: SiteManifest): Promise<void>;
   /** Shown once, after the very first page is published. */
   firstPublishHint?: { message: string; action: string; url: string };
   /** What unpublishing does and doesn't erase, for the confirm dialog. */
@@ -108,7 +122,7 @@ export async function connectGit(
   const pagesSettings = githubPagesSettingsUrl(remote);
   return {
     siteDir,
-    siteUrl,
+    pageUrl: (slug) => pageUrl(siteUrl, slug),
     pull: () =>
       syncSiteRepo(siteDir, remote).catch((error) => Promise.reject(gitFailure(error, remote))),
     push: async (message) => {
@@ -127,11 +141,16 @@ export async function connectGit(
   };
 }
 
-interface NetlifyState {
-  siteId?: string;
-  url?: string;
+interface NetlifyPageSite {
+  id: string;
+  url: string;
   /** Digest map of the last successful deploy, to skip no-op deploys. */
   deployed?: Record<string, string>;
+}
+
+interface NetlifyState {
+  /** One Netlify site per published page, keyed by page slug. */
+  pages?: Record<string, NetlifyPageSite>;
 }
 
 async function readNetlifyState(stateFile: string): Promise<NetlifyState> {
@@ -177,10 +196,12 @@ export async function signOutOfNetlify(secrets: vscode.SecretStorage): Promise<v
 }
 
 /**
- * The Netlify provider: one-click publishing. The first publish signs in
- * through the browser and creates a site with a random *.netlify.app name;
- * after that, each publish deploys the built pages directly. Without
- * `prompt`, returns undefined until both have happened.
+ * The Netlify provider: one-click publishing, one Netlify site per note, so
+ * each note lives at the root of its own address
+ * (`https://<title>-<id>.netlify.app/`). The first publish signs in through
+ * the browser; after that, publishing creates the note's site if needed and
+ * deploys it directly. Unpublishing deletes the site. Without `prompt`,
+ * returns undefined until signed in.
  */
 export async function connectNetlify(
   noatHome: string,
@@ -201,49 +222,61 @@ export async function connectNetlify(
   if (!token) return undefined;
 
   const state = await readNetlifyState(stateFile);
-  const site = await (async (): Promise<NetlifySite | undefined> => {
-    if (state.siteId && state.url) return { id: state.siteId, url: state.url };
-    if (!prompt) return undefined;
-    const created = await createSite(token).catch(async (error: unknown) => {
-      if (!(error instanceof NetlifyAuthError)) throw error;
+  const sites: Record<string, NetlifyPageSite> = state.pages ?? {};
+  const save = () => writeNetlifyState(stateFile, { pages: sites });
+
+  /** Turn Netlify's typed errors into messages that say what to do next. */
+  const explain = async (error: unknown, slug?: string): Promise<never> => {
+    if (error instanceof NetlifyAuthError) {
       await secrets.delete(NETLIFY_TOKEN_KEY);
       throw new Error('your Netlify sign-in expired. Publish again to sign back in.');
-    });
-    state.siteId = created.id;
-    state.url = created.url;
-    state.deployed = undefined;
-    await writeNetlifyState(stateFile, state);
-    return created;
-  })();
-  if (!site) return undefined;
-  const siteId = site.id;
+    }
+    if (error instanceof NetlifySiteGoneError && slug) {
+      delete sites[slug];
+      await save();
+      throw new Error("a page's Netlify site was deleted. Publish again to recreate it.");
+    }
+    throw error;
+  };
 
   return {
     siteDir,
-    siteUrl: publishConfig().get<string>('siteUrl', '').trim() || site.url,
+    pageUrl: (slug) => sites[slug]?.url ?? '',
     pull: async () => {
       await fs.mkdir(siteDir, { recursive: true });
     },
-    push: async () => {
-      const digests = Object.fromEntries(await digestDirectory(siteDir));
-      if (JSON.stringify(digests) === JSON.stringify(state.deployed)) return;
-      try {
-        await deployDirectory(token, siteId, siteDir);
-      } catch (error) {
-        if (error instanceof NetlifyAuthError) {
-          await secrets.delete(NETLIFY_TOKEN_KEY);
-          throw new Error('your Netlify sign-in expired. Publish again to sign back in.');
-        }
-        if (error instanceof NetlifySiteGoneError) {
-          await writeNetlifyState(stateFile, {});
-          throw new Error('your Netlify site was deleted. Publish again to create a new one.');
-        }
-        throw error;
+    prepare: async (manifest) => {
+      for (const page of Object.values(manifest.pages)) {
+        if (sites[page.slug]) continue;
+        const created = await createSite(token, {}, siteNameFor(page.slug)).catch((error) =>
+          explain(error)
+        );
+        sites[page.slug] = { id: created.id, url: `${created.url.replace(/\/+$/, '')}/` };
+        await save();
       }
-      state.deployed = digests;
-      await writeNetlifyState(stateFile, state);
+      return { kind: 'standalone', pageUrl: (slug) => sites[slug]?.url };
+    },
+    push: async (_message, manifest) => {
+      const live = new Set(Object.values(manifest.pages).map((page) => page.slug));
+      for (const slug of live) {
+        const site = sites[slug];
+        if (!site) continue;
+        const dir = path.join(siteDir, slug);
+        const digests = Object.fromEntries(await digestDirectory(dir));
+        if (JSON.stringify(digests) === JSON.stringify(site.deployed)) continue;
+        await deployDirectory(token, site.id, dir).catch((error) => explain(error, slug));
+        site.deployed = digests;
+        await save();
+      }
+      // Unpublished pages: delete their sites, past deploys included.
+      for (const [slug, site] of Object.entries(sites)) {
+        if (live.has(slug)) continue;
+        await deleteSite(token, site.id).catch((error) => explain(error));
+        delete sites[slug];
+        await save();
+      }
     },
     unpublishDetail:
-      "Its public link stops working within seconds. Netlify keeps past deploys at unguessable per-deploy links; delete the site in Netlify's dashboard to erase those too.",
+      "NOAT deletes this page's Netlify site, so its link and every past version stop working within seconds.",
   };
 }

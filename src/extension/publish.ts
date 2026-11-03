@@ -8,7 +8,6 @@ import {
   addToManifest,
   buildSite,
   commitTitle,
-  pageUrl,
   readManifest,
   removeFromManifest,
 } from '../core/publish';
@@ -109,8 +108,9 @@ export class SitePublisher implements vscode.Disposable {
       await connection.pull();
       const manifest = await readManifest(connection.siteDir);
       await change(manifest);
-      await buildSite(this.noatHome, connection.siteDir, manifest);
-      await connection.push(message);
+      const layout = await connection.prepare?.(manifest);
+      await buildSite(this.noatHome, connection.siteDir, manifest, layout);
+      await connection.push(message, manifest);
       this.remember(manifest);
       return manifest;
     });
@@ -142,7 +142,7 @@ export class SitePublisher implements vscode.Disposable {
     const page = manifest.pages[note.id];
     if (!page) return;
 
-    const url = pageUrl(connection.siteUrl, page.slug);
+    const url = connection.pageUrl(page.slug);
     await vscode.env.clipboard.writeText(url);
     const hint = before.firstPage ? connection.firstPublishHint : undefined;
     const choice = await vscode.window.showInformationMessage(
@@ -187,7 +187,7 @@ export class SitePublisher implements vscode.Disposable {
       const picked = await vscode.window.showQuickPick(
         pages.map(([id, page]) => ({
           label: page.title || 'Untitled',
-          description: pageUrl(connection.siteUrl, page.slug),
+          description: connection.pageUrl(page.slug),
           id,
         })),
         { placeHolder: 'Which page do you want to unpublish?' }

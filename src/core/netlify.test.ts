@@ -8,9 +8,11 @@ import {
   NetlifyAuthError,
   NetlifySiteGoneError,
   createSite,
+  deleteSite,
   deployDirectory,
   digestDirectory,
   signIn,
+  siteNameFor,
 } from './netlify';
 
 const sha1 = (text: string): string => createHash('sha1').update(text).digest('hex');
@@ -36,7 +38,7 @@ function fakeNetlify(handler: (call: Call) => { status?: number; json?: unknown 
     };
     calls.push(call);
     const { status = 200, json = {} } = handler(call);
-    return new Response(JSON.stringify(json), { status });
+    return new Response(status === 204 ? null : JSON.stringify(json), { status });
   }) as typeof fetch;
   return { calls, options: { fetch: fetchImpl, apiUrl: 'https://api.test', pollMs: 1 } };
 }
@@ -98,6 +100,36 @@ describe('createSite', () => {
   it('raises NetlifyAuthError on 401', async () => {
     const { options } = fakeNetlify(() => ({ status: 401 }));
     await expect(createSite('bad', options)).rejects.toBeInstanceOf(NetlifyAuthError);
+  });
+});
+
+describe('site naming and deletion', () => {
+  it('names the site after the page, falling back to a random name when taken', async () => {
+    const { calls, options } = fakeNetlify(({ body }) =>
+      JSON.parse(body ?? '{}').name
+        ? { status: 422, json: { message: 'subdomain taken' } }
+        : { json: { id: 's2', ssl_url: 'https://random-otter-2.netlify.app' } }
+    );
+    const site = await createSite('tok', options, 'refund-reconciliation-af062f41');
+    expect(site.url).toBe('https://random-otter-2.netlify.app');
+    expect(calls.map((call) => JSON.parse(call.body ?? '{}'))).toEqual([
+      { name: 'refund-reconciliation-af062f41' },
+      {},
+    ]);
+  });
+
+  it('keeps site names within the 63-character subdomain limit', () => {
+    const name = siteNameFor(`${'a'.repeat(62)}-tail`);
+    expect(name).toBe('a'.repeat(62));
+  });
+
+  it('deletes a site, tolerating one that is already gone', async () => {
+    const ok = fakeNetlify(() => ({ status: 204 }));
+    await deleteSite('tok', 's1', ok.options);
+    expect(ok.calls[0]).toMatchObject({ method: 'DELETE', route: '/sites/s1' });
+
+    const gone = fakeNetlify(() => ({ status: 404 }));
+    await expect(deleteSite('tok', 's1', gone.options)).resolves.toBeUndefined();
   });
 });
 
