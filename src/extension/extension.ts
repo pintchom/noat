@@ -120,7 +120,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Hybrid search: keyword index warms immediately; the vector index (local
   // embedding model, ~25 MB one-time download) builds in the background.
   const searchEngine = new SearchEngine(noatHome);
-  const publisher = new SitePublisher(noatHome);
+  const publisher = new SitePublisher(noatHome, context.secrets);
   context.subscriptions.push(publisher);
   void searchEngine.ensureKeywordIndex();
   setTimeout(() => {
@@ -251,6 +251,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   register('noat.publishNote', (node) => publisher.publish(node));
 
   register('noat.unpublishNote', (node) => publisher.unpublish(node));
+
+  register('noat.signOutNetlify', () => publisher.signOutOfNetlify());
 
   register('noat.openNotesRepo', async () => {
     const terminal = vscode.window.createTerminal({ name: 'NOAT store', cwd: noatHome });
