@@ -218,7 +218,7 @@ const INDEX_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NOAT</title>
 <style>body{font:16px/1.6 ui-sans-serif,-apple-system,"Segoe UI",sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;color:#787774}</style></head>
-<body><p>Published with NOAT.</p></body>
+<body><p>This site hosts pages published with NOAT. Each page has its own link.</p></body>
 </html>
 `;
 

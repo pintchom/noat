@@ -127,7 +127,6 @@ export class SitePublisher implements vscode.Disposable {
     if (!connection) return;
 
     const note = parseNote(await fs.readFile(notePath, 'utf8'));
-    const before = { firstPage: false };
     const manifest = await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
@@ -135,7 +134,6 @@ export class SitePublisher implements vscode.Disposable {
       },
       () =>
         this.update(connection, `publish: ${commitTitle(note.title)}`, (current) => {
-          before.firstPage = Object.keys(current.pages).length === 0;
           addToManifest(current, note);
         })
     );
@@ -144,16 +142,16 @@ export class SitePublisher implements vscode.Disposable {
 
     const url = pageUrl(connection.siteUrl, page.slug);
     await vscode.env.clipboard.writeText(url);
-    const hint = before.firstPage ? connection.firstPublishHint : undefined;
+    const notice = await connection.afterPublish?.();
+    const action = notice?.action;
     const choice = await vscode.window.showInformationMessage(
-      hint
-        ? `NOAT: published "${note.title}" and copied the link. ${hint.message}`
-        : `NOAT: published "${note.title}" and copied the link: ${url}`,
+      `NOAT: published "${note.title}" and copied the link: ${url}${notice ? ` ${notice.message}` : ''}`,
       'Open Page',
-      ...(hint ? [hint.action] : [])
+      ...(action ? [action.label] : [])
     );
     if (choice === 'Open Page') void vscode.env.openExternal(vscode.Uri.parse(url));
-    if (hint && choice === hint.action) void vscode.env.openExternal(vscode.Uri.parse(hint.url));
+    if (action && choice === action.label)
+      void vscode.env.openExternal(vscode.Uri.parse(action.url));
   }
 
   async unpublish(node: NoatNode | undefined): Promise<void> {

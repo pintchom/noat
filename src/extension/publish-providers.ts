@@ -2,6 +2,12 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import {
+  type GithubRepo,
+  ensurePages,
+  makeRepoPublic,
+  parseGithubRemote,
+} from '../core/github-pages';
+import {
   NetlifyAuthError,
   type NetlifySite,
   NetlifySiteGoneError,
@@ -26,10 +32,15 @@ export interface PublishConnection {
   pull(): Promise<void>;
   /** Make siteDir's current contents live. */
   push(message: string): Promise<void>;
-  /** Shown once, after the very first page is published. */
-  firstPublishHint?: { message: string; action: string; url: string };
+  /** Runs after each manual publish; may return a note for the result message. */
+  afterPublish?(): Promise<PublishNotice | undefined>;
   /** What unpublishing does and doesn't erase, for the confirm dialog. */
   unpublishDetail: string;
+}
+
+export interface PublishNotice {
+  message: string;
+  action?: { label: string; url: string };
 }
 
 function publishConfig(): vscode.WorkspaceConfiguration {
@@ -56,6 +67,64 @@ function gitFailure(error: unknown, remote: string): Error {
   return new Error(
     `couldn't publish (${detail}). Check that you can push to ${remote} from a terminal.`
   );
+}
+
+/** Remotes whose Pages site is known to be on this session, so later publishes skip the check. */
+const pagesConfirmed = new Set<string>();
+
+/**
+ * Turn on GitHub Pages for a github.com publish repo, signing in through the
+ * editor's built-in GitHub account. If GitHub refuses because the repo is
+ * private on a plan without private Pages, offers to make it public — only
+ * after an explicit confirmation, since that exposes the repo's full history.
+ */
+async function setUpGithubPages(
+  remote: string,
+  github: GithubRepo
+): Promise<PublishNotice | undefined> {
+  if (pagesConfirmed.has(remote)) return undefined;
+  const name = `${github.owner}/${github.repo}`;
+  const settingsUrl = githubPagesSettingsUrl(remote);
+  const manual = settingsUrl ? { label: 'Open Pages Settings', url: settingsUrl } : undefined;
+  try {
+    const session = await vscode.authentication.getSession('github', ['repo'], {
+      createIfNone: true,
+    });
+    const first = await ensurePages(session.accessToken, github);
+    const result = await (async () => {
+      if (first !== 'needs-public') return first;
+      const choice = await vscode.window.showWarningMessage(
+        `Make ${name} public?`,
+        {
+          modal: true,
+          detail:
+            "GitHub only serves Pages from private repositories on paid plans, so your link won't work while it's private. Making it public shows everything in it to anyone: every published page and the repository's full history.",
+        },
+        'Make Public'
+      );
+      if (choice !== 'Make Public') return undefined;
+      await makeRepoPublic(session.accessToken, github);
+      return ensurePages(session.accessToken, github);
+    })();
+    if (result === undefined) {
+      return {
+        message: `The link won't work while ${name} is private, unless your GitHub plan supports Pages on private repos.`,
+        ...(manual && { action: manual }),
+      };
+    }
+    if (result === 'needs-public')
+      throw new Error('GitHub still reports the repository as private');
+    pagesConfirmed.add(remote);
+    return result === 'enabled'
+      ? { message: 'GitHub Pages is now on; the link goes live in a minute or two.' }
+      : undefined;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return {
+      message: `Couldn't turn on GitHub Pages automatically (${reason}). Turn it on in the repo's settings: deploy from branch "main", root.`,
+      ...(manual && { action: manual }),
+    };
+  }
 }
 
 /**
@@ -105,7 +174,7 @@ export async function connectGit(
   if (!siteUrl) return undefined;
 
   const siteDir = getSiteDir(noatHome);
-  const pagesSettings = githubPagesSettingsUrl(remote);
+  const github = parseGithubRemote(remote);
   return {
     siteDir,
     siteUrl,
@@ -114,14 +183,7 @@ export async function connectGit(
     push: async (message) => {
       await pushSite(siteDir, message).catch((error) => Promise.reject(gitFailure(error, remote)));
     },
-    ...(pagesSettings && {
-      firstPublishHint: {
-        message:
-          'First time? Turn on GitHub Pages for the repo (deploy from branch "main", root) so the link goes live.',
-        action: 'Enable GitHub Pages',
-        url: pagesSettings,
-      },
-    }),
+    ...(github && { afterPublish: () => setUpGithubPages(remote, github) }),
     unpublishDetail:
       "Its public link stops working once the site redeploys. Earlier versions stay in the publish repository's git history; delete or rewrite that repository to erase them.",
   };
