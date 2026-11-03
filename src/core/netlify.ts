@@ -85,7 +85,8 @@ async function request<T>(
     (error as { status?: number }).status = response.status;
     throw error;
   }
-  return (await response.json()) as T;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 /**
@@ -125,20 +126,47 @@ export async function signIn(
   return token.access_token;
 }
 
+/** A valid *.netlify.app subdomain label from a page slug (≤63 chars). */
+export function siteNameFor(slug: string): string {
+  return slug.slice(0, 63).replace(/-+$/, '');
+}
+
+/**
+ * Create a site, named `name` when that subdomain is free. Netlify names are
+ * global, so on a clash it falls back to a random name (e.g. "brave-otter-1234").
+ */
 export async function createSite(
   token: string,
-  options: NetlifyOptions = {}
+  options: NetlifyOptions = {},
+  name?: string
 ): Promise<NetlifySite> {
-  // No name: Netlify picks a free random one (e.g. "brave-otter-1234").
-  const site = await request<{ id: string; ssl_url?: string; url?: string }>(
-    options,
-    'POST',
-    '/sites',
-    { token, json: {} }
-  );
+  const create = (body: Record<string, string>) =>
+    request<{ id: string; ssl_url?: string; url?: string }>(options, 'POST', '/sites', {
+      token,
+      json: body,
+    });
+  const site = name
+    ? await create({ name }).catch((error: unknown) => {
+        if ((error as { status?: number }).status === 422) return create({});
+        throw error;
+      })
+    : await create({});
   const url = site.ssl_url || site.url;
   if (!site.id || !url) throw new Error('Netlify did not return the new site');
   return { id: site.id, url: url.replace(/^http:/, 'https:') };
+}
+
+/** Delete a site and every deploy of it. Already-deleted sites are fine. */
+export async function deleteSite(
+  token: string,
+  siteId: string,
+  options: NetlifyOptions = {}
+): Promise<void> {
+  await request(options, 'DELETE', `/sites/${encodeURIComponent(siteId)}`, { token }).catch(
+    (error: unknown) => {
+      if ((error as { status?: number }).status !== 404) throw error;
+    }
+  );
 }
 
 /** "/"-separated paths (with a leading "/") of every file under `dir`, mapped to SHA-1. */

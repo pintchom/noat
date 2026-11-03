@@ -198,6 +198,43 @@ describe('publishing to a git remote', () => {
     );
   });
 
+  it('builds each page as a standalone site with absolute cross-links and its own assets', async () => {
+    const siteDir = path.join(tmp, 'standalone');
+    await fs.mkdir(getAssetsDir(noatHome), { recursive: true });
+    await fs.writeFile(path.join(getAssetsDir(noatHome), 'shot-1.png'), 'png');
+    await writeNote(
+      'Plan.noat.json',
+      note('plan0001', 'Plan', [
+        {
+          id: 'p',
+          type: 'paragraph',
+          content: [
+            { type: 'noteLink', props: { notePath: 'global/Notes.noat.json', title: 'Notes' } },
+          ],
+        },
+        { id: 'i', type: 'image', props: { url: 'assets/shot-1.png' } },
+      ])
+    );
+    await writeNote('Notes.noat.json', note('notes001', 'Notes', []));
+    const manifest = await readManifest(siteDir);
+    addToManifest(manifest, note('plan0001', 'Plan', []));
+    addToManifest(manifest, note('notes001', 'Notes', []));
+    const layout = {
+      kind: 'standalone' as const,
+      pageUrl: (slug: string) => `https://${slug}.netlify.app/`,
+    };
+
+    await fs.mkdir(path.join(siteDir, 'plan-plan0001', 'assets'), { recursive: true });
+    await fs.writeFile(path.join(siteDir, 'plan-plan0001', 'assets', 'stale.png'), 'old');
+    await buildSite(noatHome, siteDir, manifest, layout);
+
+    const html = await fs.readFile(path.join(siteDir, 'plan-plan0001', 'index.html'), 'utf8');
+    expect(html).toContain('<a class="chip" href="https://notes-notes001.netlify.app/">Notes</a>');
+    expect(html).toContain('<img src="assets/shot-1.png"');
+    expect(await fs.readdir(path.join(siteDir, 'plan-plan0001', 'assets'))).toEqual(['shot-1.png']);
+    await expect(fs.access(path.join(siteDir, 'assets'))).rejects.toThrow();
+  });
+
   it('keeps a page slug stable when the note is renamed', async () => {
     const siteDir = getSiteDir(noatHome);
     await writeNote('Plan.noat.json', note('plan0001', 'Plan', []));

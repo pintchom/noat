@@ -223,6 +223,16 @@ const INDEX_HTML = `<!DOCTYPE html>
 `;
 
 /**
+ * How published pages are laid out. `shared`: one site, each page under
+ * `/<slug>/`, assets shared at `/assets/`. `standalone`: every page folder is
+ * a complete site of its own (page at its root, its assets beside it), and
+ * links between pages use each page's absolute URL.
+ */
+export type SiteLayout =
+  | { kind: 'shared' }
+  | { kind: 'standalone'; pageUrl: (slug: string) => string | undefined };
+
+/**
  * Regenerate every published page whose note exists in this store, and write
  * `manifest`. Re-rendering all pages (not just the one being published) keeps
  * links between published notes and their titles current. Pages whose note
@@ -231,7 +241,8 @@ const INDEX_HTML = `<!DOCTYPE html>
 export async function buildSite(
   noatHome: string,
   siteDir: string,
-  manifest: SiteManifest
+  manifest: SiteManifest,
+  layout: SiteLayout = { kind: 'shared' }
 ): Promise<void> {
   const notes = await notesById(noatHome);
   const slugByPath = new Map<string, string>();
@@ -241,20 +252,15 @@ export async function buildSite(
   }
 
   const assetsDir = getAssetsDir(noatHome);
-  const assets = new Set<string>();
-  // Pages live one folder deep, so site-root files are one level up.
-  const links: HtmlLinkResolver = {
-    noteHref: (notePath) => {
-      const slug = slugByPath.get(notePath);
-      return slug ? `../${slug}/` : undefined;
-    },
-    assetHref: (url) => {
-      const file = assetFileFromUrl(url);
-      if (!file) return undefined;
-      assets.add(file);
-      return `../assets/${encodeURIComponent(file)}`;
-    },
+  const copyAssets = async (files: Set<string>, targetDir: string): Promise<void> => {
+    if (files.size > 0) await fs.mkdir(targetDir, { recursive: true });
+    for (const file of files) {
+      await fs
+        .copyFile(path.join(assetsDir, file), path.join(targetDir, file))
+        .catch(() => undefined);
+    }
   };
+  const sharedAssets = new Set<string>();
 
   for (const [noteId, page] of Object.entries(manifest.pages)) {
     const found = notes.get(noteId);
@@ -262,16 +268,30 @@ export async function buildSite(
     page.title = found.note.title;
     page.updatedAt = found.note.updatedAt;
     const pageDir = pageDirOf(siteDir, page.slug);
+    const pageAssets = layout.kind === 'standalone' ? new Set<string>() : sharedAssets;
+    // Shared pages live one folder deep, so site-root files are one level up.
+    const links: HtmlLinkResolver = {
+      noteHref: (notePath) => {
+        const slug = slugByPath.get(notePath);
+        if (!slug) return undefined;
+        return layout.kind === 'standalone' ? layout.pageUrl(slug) : `../${slug}/`;
+      },
+      assetHref: (url) => {
+        const file = assetFileFromUrl(url);
+        if (!file) return undefined;
+        pageAssets.add(file);
+        return `${layout.kind === 'standalone' ? '' : '../'}assets/${encodeURIComponent(file)}`;
+      },
+    };
+    const html = noteToHtml(found.note, links);
+    // A standalone page folder is deployed as-is, so stale assets must not linger.
+    if (layout.kind === 'standalone') await fs.rm(pageDir, { recursive: true, force: true });
     await fs.mkdir(pageDir, { recursive: true });
-    await fs.writeFile(path.join(pageDir, 'index.html'), noteToHtml(found.note, links));
+    await fs.writeFile(path.join(pageDir, 'index.html'), html);
+    if (layout.kind === 'standalone') await copyAssets(pageAssets, path.join(pageDir, 'assets'));
   }
 
-  if (assets.size > 0) await fs.mkdir(path.join(siteDir, 'assets'), { recursive: true });
-  for (const file of assets) {
-    await fs
-      .copyFile(path.join(assetsDir, file), path.join(siteDir, 'assets', file))
-      .catch(() => undefined);
-  }
+  await copyAssets(sharedAssets, path.join(siteDir, 'assets'));
 
   // GitHub Pages runs Jekyll by default, which hides folders starting with "_".
   await fs.writeFile(path.join(siteDir, '.nojekyll'), '');
