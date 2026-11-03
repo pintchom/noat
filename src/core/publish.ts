@@ -41,8 +41,10 @@ export interface SiteManifest {
 async function git(cwd: string, args: string[]): Promise<string> {
   const { stdout } = await execFileAsync('git', args, {
     cwd,
-    // Fail instead of hanging on a credential prompt nobody can see.
+    // Fail instead of hanging on a credential prompt nobody can see. The
+    // timeout covers prompts GIT_TERMINAL_PROMPT doesn't, like ssh passphrases.
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    timeout: 120_000,
     maxBuffer: 16 * 1024 * 1024,
   });
   return stdout.trim();
