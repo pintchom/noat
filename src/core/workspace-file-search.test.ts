@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { rankWorkspaceFiles } from './workspace-file-search';
+import { confineRelativePath, rankWorkspaceFiles } from './workspace-file-search';
+
+describe('confineRelativePath', () => {
+  it('keeps paths inside the folder, normalized', () => {
+    expect(confineRelativePath('src/core/note.ts')).toBe('src/core/note.ts');
+    expect(confineRelativePath('src/../README.md')).toBe('README.md');
+    expect(confineRelativePath('src\\core\\note.ts')).toBe('src/core/note.ts');
+  });
+
+  it('rejects paths that leave the folder or are absolute', () => {
+    for (const bad of [
+      '../secret',
+      '../../.ssh/id_rsa',
+      'src/../../x',
+      '..\\..\\x',
+      '/etc/passwd',
+      'C:/Windows/win.ini',
+      '',
+      '.',
+    ]) {
+      expect(confineRelativePath(bad)).toBeUndefined();
+    }
+  });
+});
 
 describe('rankWorkspaceFiles', () => {
   it('shows every changed file before filling with regular workspace files', () => {

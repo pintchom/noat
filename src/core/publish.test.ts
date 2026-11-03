@@ -166,6 +166,38 @@ describe('publishing to a git remote', () => {
     expect(await fs.readdir(siteDir)).toEqual(['.git']);
   });
 
+  it('ignores manifest pages whose slug could escape the site folder', async () => {
+    const siteDir = getSiteDir(noatHome);
+    const victim = path.join(tmp, 'victim');
+    await fs.mkdir(victim);
+    await fs.writeFile(path.join(victim, 'keep.txt'), 'precious');
+    await syncSiteRepo(siteDir, remote);
+    await fs.writeFile(
+      path.join(siteDir, 'noat-site.json'),
+      JSON.stringify({
+        version: 1,
+        pages: {
+          evil: { slug: '../../victim', title: 'Click me', publishedAt: '', updatedAt: '' },
+          ok: { slug: 'fine-page-1234', title: 'Fine', publishedAt: '', updatedAt: '' },
+        },
+      })
+    );
+
+    const manifest = await readManifest(siteDir);
+    expect(Object.keys(manifest.pages)).toEqual(['ok']);
+
+    // Even a manifest edited in memory can't be used to delete outside the site.
+    manifest.pages.evil = { slug: '../../victim', title: '', publishedAt: '', updatedAt: '' };
+    await expect(removeFromManifest(siteDir, manifest, 'evil')).rejects.toThrow(/unsafe/);
+    expect(await fs.readFile(path.join(victim, 'keep.txt'), 'utf8')).toBe('precious');
+  });
+
+  it('rejects a repository value git would read as an option', async () => {
+    await expect(syncSiteRepo(getSiteDir(noatHome), '--upload-pack=touch /tmp/x')).rejects.toThrow(
+      /Invalid publish repository/
+    );
+  });
+
   it('keeps a page slug stable when the note is renamed', async () => {
     const siteDir = getSiteDir(noatHome);
     await writeNote('Plan.noat.json', note('plan0001', 'Plan', []));

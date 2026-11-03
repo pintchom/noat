@@ -19,9 +19,15 @@ const AUTO_SAVE_MS = 400;
 const MAX_NOTE_RESULTS = 30;
 
 async function openWorkspaceFile(relativePath: string): Promise<void> {
+  if (!vscode.workspace.workspaceFolders?.length) {
+    vscode.window.showWarningMessage('NOAT: open a workspace folder to follow file links.');
+    return;
+  }
   const uri = resolveWorkspacePath(relativePath);
   if (!uri) {
-    vscode.window.showWarningMessage('NOAT: open a workspace folder to follow file links.');
+    vscode.window.showWarningMessage(
+      `NOAT: not following a file link that points outside the workspace: ${relativePath}`
+    );
     return;
   }
   try {

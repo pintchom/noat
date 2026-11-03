@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getWorkspaceGitSnapshot } from '../core/git';
-import { rankWorkspaceFiles } from '../core/workspace-file-search';
+import { confineRelativePath, rankWorkspaceFiles } from '../core/workspace-file-search';
 
 const MAX_FILES = 50000;
 const CACHE_TTL_MS = 15000;
@@ -112,15 +112,20 @@ export function pickFileViewColumn(uri: vscode.Uri): vscode.ViewColumn {
   return otherGroup?.viewColumn ?? vscode.ViewColumn.Beside;
 }
 
-/** Resolve a stored @-mention path back to a Uri, handling multi-root prefixes. */
+/**
+ * Resolve a stored @-mention path back to a Uri, handling multi-root
+ * prefixes. Undefined when no folder is open or the path would leave it.
+ */
 export function resolveWorkspacePath(relativePath: string): vscode.Uri | undefined {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) return undefined;
+  const confined = confineRelativePath(relativePath);
+  if (!confined) return undefined;
 
   if (folders.length > 1) {
-    const [prefix, ...rest] = relativePath.split('/');
+    const [prefix, ...rest] = confined.split('/');
     const folder = folders.find((f) => f.name === prefix);
     if (folder && rest.length > 0) return vscode.Uri.joinPath(folder.uri, rest.join('/'));
   }
-  return vscode.Uri.joinPath(folders[0]!.uri, relativePath);
+  return vscode.Uri.joinPath(folders[0]!.uri, confined);
 }

@@ -54,7 +54,7 @@ describe('renderInline', () => {
     expect(html).toBe('bad<a href="https://example.com">good</a>');
   });
 
-  it('links published notes and leaves unpublished ones as plain chips', () => {
+  it('links published notes and shows unpublished ones as unlinked chips', () => {
     const html = renderInline(
       [
         { type: 'noteLink', props: { notePath: 'global/Published.noat.json', title: 'Pub' } },
