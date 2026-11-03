@@ -150,6 +150,23 @@ describe('blocksToMarkdown noteLink chips', () => {
   });
 });
 
+describe('blocksToMarkdown blockLink chips', () => {
+  it('renders a blockLink chip as its label snapshot', async () => {
+    const blocks = [
+      {
+        id: 'b1',
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Back to ', styles: {} },
+          { type: 'blockLink', props: { blockId: 'h1', label: 'Deploy steps' } },
+        ],
+      },
+    ] as unknown as NoteFile['blocks'];
+    const markdown = await blocksToMarkdown(blocks);
+    expect(markdown).toContain('Back to ↳ Deploy steps');
+  });
+});
+
 describe('prepareBlocks color contrast', () => {
   const paragraph = (overrides: Record<string, unknown>): Block =>
     ({ type: 'paragraph', ...overrides }) as unknown as Block;

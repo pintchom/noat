@@ -11,11 +11,12 @@ function inlineText(content: unknown): string {
         type?: string;
         text?: string;
         content?: unknown;
-        props?: { path?: string; title?: string; latex?: string };
+        props?: { path?: string; title?: string; latex?: string; label?: string };
       };
       if (typeof inline.text === 'string') return inline.text;
       if (inline.type === 'fileLink') return inline.props?.path ?? '';
       if (inline.type === 'noteLink') return inline.props?.title ?? '';
+      if (inline.type === 'blockLink') return inline.props?.label ?? '';
       if (inline.type === 'math') return inline.props?.latex ?? '';
       if (inline.content) return inlineText(inline.content);
       return '';

@@ -21,6 +21,10 @@ Write `$E = mc^2$` inline or `$$` for a display equation and it renders with KaT
 
 Type `@` in a note to fuzzy-search tracked and non-ignored files in your workspace and insert a link chip. Files changed in your working tree appear first. Click a chip and the file opens in the column beside your note. Paths are stored repo-relative, so links keep working across machines.
 
+### Point to another line with `/point`
+
+Type `/point`, then click any line in the note. A chip linking to that line lands where you typed `/point`; clicking it scrolls to the line and briefly highlights it. The chip shows the line's current text, and turns gray and struck through if that line is deleted. `Esc` cancels.
+
 ### Repo-scoped or global
 
 Notes are either **global** (visible everywhere) or **scoped to a repository** (keyed by its `origin` remote, so clones on other machines see the same notes). Organize freely with folders — drag notes into folders in the sidebar, or move notes between scopes from the context menu. Use the layers icon in the sidebar to show every repository's notes at once, not just the current workspace.

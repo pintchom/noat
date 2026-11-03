@@ -1,4 +1,4 @@
-import { type PartialBlock, insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
+import { type PartialBlock, insertOrUpdateBlockForSlashMenu, trackPosition } from '@blocknote/core';
 import { SuggestionMenu, filterSuggestionItems } from '@blocknote/core/extensions';
 import { BlockNoteView } from '@blocknote/mantine';
 import {
@@ -10,7 +10,7 @@ import {
   getFormattingToolbarItems,
   useCreateBlockNote,
 } from '@blocknote/react';
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, type MouseEvent, useEffect, useRef, useState } from 'react';
 import { NOTE_ICON, noteIconForStorage, resolveNoteIcon } from '../core/display-icons';
 import { type NoteFile, serializeNote } from '../core/note';
 import { MathToolbarButton, applySelectionMath } from './MathToolbarButton';
@@ -21,6 +21,7 @@ import { searchWorkspaceFiles } from './file-search-client';
 import { mathInput } from './math-input';
 import { nestedBackspace } from './nested-backspace';
 import { searchNotes } from './note-search-client';
+import { insertBlockLinkAt } from './point-link';
 import { schema } from './schema';
 import { smartArrows } from './smart-arrows';
 import '@blocknote/mantine/style.css';
@@ -156,6 +157,80 @@ export function NoteEditor({
     },
   };
 
+  // "/point": the slash item enters a pick mode where the next click on a
+  // line chooses the target, then a blockLink chip lands where "/point" was
+  // typed. The insert position is tracked through edits made meanwhile
+  // (agent writes, undo), so the chip still lands in the right place.
+  const pointOrigin = useRef<(() => number) | null>(null);
+  const swallowNextClick = useRef(false);
+  const [pointing, setPointing] = useState(false);
+
+  const pointItem: DefaultReactSuggestionItem = {
+    title: 'Point',
+    subtext: 'Link to another line in this note',
+    aliases: ['point', 'anchor', 'jump', 'goto', 'line link', 'block link'],
+    group: 'Notes',
+    icon: <span>{'\u21b3'}</span>,
+    onItemClick: () => {
+      pointOrigin.current = trackPosition(editor, editor.prosemirrorState.selection.from);
+      setPointing(true);
+    },
+  };
+
+  /** Leave pick mode, inserting a chip to `targetId` unless cancelled. */
+  const finishPoint = (targetId: string | undefined): void => {
+    const origin = pointOrigin.current;
+    pointOrigin.current = null;
+    setPointing(false);
+    if (!origin) return;
+    insertBlockLinkAt(editor, origin, targetId);
+    editor.focus();
+  };
+
+  // Capture phase, so the picking click never reaches ProseMirror (which
+  // would move the caret) or a chip's own click handler.
+  const onPointMouseDown = (event: MouseEvent<HTMLDivElement>): void => {
+    if (!pointing) {
+      swallowNextClick.current = false;
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    swallowNextClick.current = true;
+    // The picking click fires right after mouseup, if at all — releasing
+    // outside the editor sends it elsewhere. Clear the flag either way so it
+    // can't eat a later, unrelated click.
+    window.addEventListener(
+      'mouseup',
+      () =>
+        setTimeout(() => {
+          swallowNextClick.current = false;
+        }, 0),
+      { capture: true, once: true }
+    );
+    const outer = (event.target as Element).closest<HTMLElement>('.bn-block-outer[data-id]');
+    finishPoint(outer?.dataset.id);
+  };
+
+  const onPointClick = (event: MouseEvent<HTMLDivElement>): void => {
+    if (!swallowNextClick.current) return;
+    swallowNextClick.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  useEffect(() => {
+    if (!pointing) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      finishPoint(undefined);
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  });
+
   // Both math items open an empty LaTeX field that takes focus immediately.
   // The slash menu otherwise closes on the editor's next selection change,
   // which never comes once focus has left the editor -- so it would hang over
@@ -192,7 +267,7 @@ export function NoteEditor({
 
   const getSlashMenuItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
     filterSuggestionItems(
-      [...getDefaultReactSlashMenuItems(editor), pageLinkItem, ...mathItems],
+      [...getDefaultReactSlashMenuItems(editor), pageLinkItem, pointItem, ...mathItems],
       query
     );
 
@@ -328,7 +403,15 @@ export function NoteEditor({
   };
 
   return (
-    <div className="noat-note">
+    <div className={pointing ? 'noat-note noat-pointing' : 'noat-note'}>
+      {pointing && (
+        <output className="noat-point-banner">
+          Click the line to point to
+          <button type="button" onClick={() => finishPoint(undefined)}>
+            Cancel (Esc)
+          </button>
+        </output>
+      )}
       <div className="noat-title-area">
         <NoteIconPicker
           icon={icon}
@@ -353,7 +436,11 @@ export function NoteEditor({
           }}
         />
       </div>
-      <div onKeyDownCapture={onEditorKeyDown}>
+      <div
+        onKeyDownCapture={onEditorKeyDown}
+        onMouseDownCapture={onPointMouseDown}
+        onClickCapture={onPointClick}
+      >
         <BlockNoteView
           editor={editor}
           theme={isDark ? 'dark' : 'light'}
