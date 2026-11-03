@@ -3,43 +3,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { assetFileFromUrl } from '../core/assets';
-import { resolveNoteIcon } from '../core/display-icons';
-import { NOTE_EXTENSION, type NoteFile, parseNote, titleToFileName } from '../core/note';
-import { listAllNotes } from '../core/note-listing';
-import { getAssetsDir, getNotesRoot } from '../core/paths';
+import { type NoteFile, parseNote, titleToFileName } from '../core/note';
+import { getAssetsDir } from '../core/paths';
 import { noteToPdf } from '../core/pdf-export';
-import { repoKeyToLabel } from '../core/repo-key';
-import { NoteEditorProvider } from './note-editor';
+import { targetNotePath } from './note-target';
 import type { NoatNode } from './notes-tree';
-
-/** The note file backing the active editor tab, if it is a NOAT note. */
-function activeNotePath(): string | undefined {
-  const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
-  if (input instanceof vscode.TabInputCustom && input.viewType === NoteEditorProvider.viewType) {
-    return input.uri.fsPath;
-  }
-  if (input instanceof vscode.TabInputText && input.uri.fsPath.endsWith(NOTE_EXTENSION)) {
-    return input.uri.fsPath;
-  }
-  return undefined;
-}
-
-async function pickNote(noatHome: string): Promise<string | undefined> {
-  const notes = await listAllNotes(noatHome);
-  if (notes.length === 0) {
-    vscode.window.showInformationMessage('NOAT: no notes to export yet.');
-    return undefined;
-  }
-  const picked = await vscode.window.showQuickPick(
-    notes.map((listing) => ({
-      label: `${resolveNoteIcon(listing.icon)} ${listing.title}`,
-      description: listing.scope === 'global' ? 'Global' : repoKeyToLabel(listing.scope),
-      notePath: listing.notePath,
-    })),
-    { placeHolder: 'Which note do you want to export as PDF?' }
-  );
-  return picked ? path.join(getNotesRoot(noatHome), picked.notePath) : undefined;
-}
 
 type Block = NoteFile['blocks'][number];
 
@@ -92,10 +60,7 @@ async function defaultSaveUri(fileName: string): Promise<vscode.Uri> {
  * sidebar context menu (node), the active editor tab, or a quick pick.
  */
 export async function exportNoteAsPdf(noatHome: string, node?: NoatNode): Promise<void> {
-  const notePath = await (async () => {
-    if (node?.type === 'entry' && node.entry.kind === 'note') return node.entry.absPath;
-    return activeNotePath() ?? (await pickNote(noatHome));
-  })();
+  const notePath = await targetNotePath(noatHome, node, 'Which note do you want to export as PDF?');
   if (!notePath) return;
 
   const note = parseNote(await fs.readFile(notePath, 'utf8'));
