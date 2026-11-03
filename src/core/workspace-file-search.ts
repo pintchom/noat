@@ -1,3 +1,26 @@
+import * as path from 'node:path';
+
+/**
+ * A file-link path normalized to "/" separators, or undefined if it is absolute
+ * or climbs out of the folder it's relative to. Paths come from note JSON,
+ * which agents and other machines also write, so `../../.ssh/id_rsa` must
+ * not open.
+ */
+export function confineRelativePath(relativePath: string): string | undefined {
+  const normalized = path.posix.normalize(relativePath.replace(/\\/g, '/'));
+  if (
+    normalized.length === 0 ||
+    normalized === '.' ||
+    path.posix.isAbsolute(normalized) ||
+    /^[A-Za-z]:/.test(normalized) ||
+    normalized === '..' ||
+    normalized.startsWith('../')
+  ) {
+    return undefined;
+  }
+  return normalized;
+}
+
 interface ScoredFile {
   file: string;
   score: number;

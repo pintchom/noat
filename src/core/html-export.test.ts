@@ -54,7 +54,7 @@ describe('renderInline', () => {
     expect(html).toBe('bad<a href="https://example.com">good</a>');
   });
 
-  it('links published notes and leaves unpublished ones as plain chips', () => {
+  it('links published notes and hides the titles of unpublished ones', () => {
     const html = renderInline(
       [
         { type: 'noteLink', props: { notePath: 'global/Published.noat.json', title: 'Pub' } },
@@ -63,7 +63,8 @@ describe('renderInline', () => {
       links
     );
     expect(html).toContain('<a class="chip" href="../published-1/">Pub</a>');
-    expect(html).toContain('<span class="chip">Priv</span>');
+    expect(html).toContain('<span class="chip private">🔒 Private page</span>');
+    expect(html).not.toContain('>Priv<');
   });
 
   it('renders file links as code and math with KaTeX', () => {
