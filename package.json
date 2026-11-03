@@ -138,6 +138,10 @@
       {
         "command": "noat.unpublishNote",
         "title": "NOAT: Unpublish Note"
+      },
+      {
+        "command": "noat.signOutNetlify",
+        "title": "NOAT: Sign Out of Netlify"
       }
     ],
     "keybindings": [
@@ -167,23 +171,41 @@
           "markdownDescription": "Let MCP agents read and write notes as BlockNote JSON instead of markdown. Preserves colors, background highlights, file links, and other rich formatting that markdown conversion drops.",
           "order": 1
         },
+        "noat.publish.provider": {
+          "type": "string",
+          "enum": [
+            "netlify",
+            "git"
+          ],
+          "default": "netlify",
+          "scope": "application",
+          "enumDescriptions": [
+            "One click: sign in to Netlify once and NOAT creates and deploys a site for you.",
+            "Push pages to a git repository you own, served by GitHub Pages, Cloudflare Pages, or another static host."
+          ],
+          "markdownDescription": "Where **NOAT: Publish Note to Web** puts your pages.",
+          "order": 2
+        },
         "noat.publish.repository": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Git repository that **NOAT: Publish Note to Web** pushes pages to, e.g. `https://github.com/you/notes.git`. Use an empty repo and turn on GitHub Pages (deploy from branch `main`). Asked for on first publish.",
-          "order": 2
+          "scope": "application",
+          "markdownDescription": "Git repository the `git` provider pushes pages to, e.g. `https://github.com/you/notes.git`. Use an empty repo and turn on GitHub Pages (deploy from branch `main`). Asked for on first publish.",
+          "order": 3
         },
         "noat.publish.siteUrl": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Public URL the publish repository is served at. Leave empty for GitHub repos — it's derived as `https://<owner>.github.io/<repo>/`. Set it for custom domains or other hosts.",
-          "order": 3
+          "scope": "application",
+          "markdownDescription": "Public URL your pages are served at, for custom domains. Leave empty to use the Netlify site's address, or for GitHub repos `https://<owner>.github.io/<repo>/`.",
+          "order": 4
         },
         "noat.publish.autoUpdate": {
           "type": "boolean",
           "default": true,
+          "scope": "application",
           "markdownDescription": "Re-publish a published note automatically shortly after it's saved, so its web page stays current.",
-          "order": 4
+          "order": 5
         }
       }
     },

@@ -33,6 +33,11 @@ export function getSiteDir(noatHome: string): string {
   return path.join(noatHome, 'site');
 }
 
+/** Published site state for the Netlify provider: `public/` is what gets deployed. */
+export function getNetlifySiteDir(noatHome: string): string {
+  return path.join(noatHome, 'site-netlify');
+}
+
 export function getGlobalNotesDir(noatHome: string): string {
   return path.join(getNotesRoot(noatHome), 'global');
 }

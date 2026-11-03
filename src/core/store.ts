@@ -29,7 +29,7 @@ export function scopeDir(noatHome: string, scope: NoteScope): string {
     : getRepoNotesDir(noatHome, scope.repoKey);
 }
 
-const REQUIRED_GITIGNORES = ['.cache/', '.index/', '.DS_Store', 'mcp/', 'site/'];
+const REQUIRED_GITIGNORES = ['.cache/', '.index/', '.DS_Store', 'mcp/', 'site/', 'site-netlify/'];
 
 /** Create the on-disk layout and git-init the store. Idempotent. */
 export async function initStore(noatHome: string): Promise<void> {
