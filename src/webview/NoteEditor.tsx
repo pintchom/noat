@@ -190,10 +190,24 @@ export function NoteEditor({
   // Capture phase, so the picking click never reaches ProseMirror (which
   // would move the caret) or a chip's own click handler.
   const onPointMouseDown = (event: MouseEvent<HTMLDivElement>): void => {
-    if (!pointing) return;
+    if (!pointing) {
+      swallowNextClick.current = false;
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     swallowNextClick.current = true;
+    // The picking click fires right after mouseup, if at all — releasing
+    // outside the editor sends it elsewhere. Clear the flag either way so it
+    // can't eat a later, unrelated click.
+    window.addEventListener(
+      'mouseup',
+      () =>
+        setTimeout(() => {
+          swallowNextClick.current = false;
+        }, 0),
+      { capture: true, once: true }
+    );
     const outer = (event.target as Element).closest<HTMLElement>('.bn-block-outer[data-id]');
     finishPoint(outer?.dataset.id);
   };

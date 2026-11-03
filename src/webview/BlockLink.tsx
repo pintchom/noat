@@ -6,6 +6,7 @@ import type { NoteFile } from '../core/note';
 
 const POINT_ICON = '\u21b3';
 const FLASH_MS = 1600;
+const flashTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
 
 // biome-ignore lint/suspicious/noExplicitAny: works with any schema
 type AnyEditor = BlockNoteEditor<any, any, any>;
@@ -27,7 +28,11 @@ export function jumpToBlock(editor: AnyEditor, blockId: string): void {
   // Reflow so re-adding the class restarts the animation on repeat clicks.
   void element.offsetWidth;
   element.classList.add('noat-point-flash');
-  setTimeout(() => element.classList.remove('noat-point-flash'), FLASH_MS);
+  clearTimeout(flashTimers.get(element));
+  flashTimers.set(
+    element,
+    setTimeout(() => element.classList.remove('noat-point-flash'), FLASH_MS)
+  );
   editor.setTextCursorPosition(blockId, 'start');
   editor.focus();
 }
