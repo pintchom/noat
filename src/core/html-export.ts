@@ -108,11 +108,11 @@ export function renderInline(content: unknown, links: HtmlLinkResolver): string 
           return `<code class="chip">${escapeHtml(props.path ?? '')}</code>`;
         case 'noteLink': {
           const href = links.noteHref(props.notePath ?? '');
-          // An unpublished note's title is private too, not just its content.
-          if (!href) return '<span class="chip private">🔒 Private page</span>';
           const icon = normalizeNoteIcon(props.icon);
           const label = `${icon ? `${icon} ` : ''}${escapeHtml(props.title || 'Untitled')}`;
-          return `<a class="chip" href="${escapeHtml(href)}">${label}</a>`;
+          return href
+            ? `<a class="chip" href="${escapeHtml(href)}">${label}</a>`
+            : `<span class="chip">${label}</span>`;
         }
         case 'blockLink':
           return `<a class="chip" href="#${escapeHtml(props.blockId ?? '')}">↳ ${escapeHtml(props.label ?? '')}</a>`;
@@ -411,7 +411,6 @@ pre code { background: none; padding: 0; color: inherit; font-size: 0.85em; line
 }
 a.chip:hover { text-decoration: underline; }
 code.chip { color: var(--link); }
-.chip.private { color: var(--muted); }
 blockquote { margin: 0.6em 0; padding: 0 0 0 14px; border-left: 3px solid currentColor; }
 ul, ol { margin: 0.2em 0; padding-left: 1.6em; }
 li { margin: 0.15em 0; }

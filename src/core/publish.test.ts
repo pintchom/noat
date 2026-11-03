@@ -111,9 +111,7 @@ describe('publishing to a git remote', () => {
     await buildSite(noatHome, siteDir, manifest);
     expect(await pushSite(siteDir, 'publish: Plan')).toBe(true);
     expect(plan.slug).toBe('plan-plan0001');
-    expect(remoteFile('plan-plan0001/index.html')).toContain(
-      '<span class="chip private">🔒 Private page</span>'
-    );
+    expect(remoteFile('plan-plan0001/index.html')).toContain('<span class="chip">Notes</span>');
     expect(remoteFile('assets/shot-1.png')).toBe('png');
     expect(remoteFile('.nojekyll')).toBe('');
 
@@ -141,9 +139,7 @@ describe('publishing to a git remote', () => {
     await buildSite(noatHome, siteDir, last);
     await pushSite(siteDir, 'unpublish: Notes');
     expect(() => remoteFile('notes-notes001/index.html')).toThrow();
-    expect(remoteFile('plan-plan0001/index.html')).toContain(
-      '<span class="chip private">🔒 Private page</span>'
-    );
+    expect(remoteFile('plan-plan0001/index.html')).toContain('<span class="chip">Notes</span>');
   });
 
   it('starts clean when the repository setting points at a new, empty remote', async () => {
