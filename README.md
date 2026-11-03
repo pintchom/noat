@@ -114,7 +114,7 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 
 Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.
 
-Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Export Note as PDF`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`.
+Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Export Note as PDF`, `NOAT: Publish Note to Web`, `NOAT: Unpublish Note`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`.
 
 ## MCP setup outside Cursor
 
@@ -151,6 +151,7 @@ Everything lives in `~/.noat` (override with `NOAT_HOME`):
   .cache/                # embedding model cache (gitignored)
   .index/                # search indexes — derived, rebuildable (gitignored)
   mcp/                   # stable copy of the MCP server (gitignored)
+  site/                  # clone of your publish repo, if you publish notes (gitignored)
   notes/
     global/              # universal notes, nested folders allowed
     repos/<repo-key>/    # notes scoped to one repository
