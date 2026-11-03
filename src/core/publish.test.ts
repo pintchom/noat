@@ -142,6 +142,30 @@ describe('publishing to a git remote', () => {
     expect(remoteFile('plan-plan0001/index.html')).toContain('<span class="chip">Notes</span>');
   });
 
+  it('starts clean when the repository setting points at a new, empty remote', async () => {
+    const siteDir = getSiteDir(noatHome);
+    await writeNote('Plan.noat.json', note('plan0001', 'Plan', []));
+    await syncSiteRepo(siteDir, remote);
+    const manifest = await readManifest(siteDir);
+    addToManifest(manifest, note('plan0001', 'Plan', []));
+    await buildSite(noatHome, siteDir, manifest);
+    await pushSite(siteDir, 'publish: Plan');
+
+    const otherRemote = path.join(tmp, 'other.git');
+    execFileSync('git', ['init', '--bare', '-b', 'main', otherRemote]);
+    await syncSiteRepo(siteDir, otherRemote);
+    expect((await readManifest(siteDir)).pages).toEqual({});
+    expect(await fs.readdir(siteDir)).toEqual(['.git']);
+  });
+
+  it('drops local leftovers while the remote is still empty', async () => {
+    const siteDir = getSiteDir(noatHome);
+    await syncSiteRepo(siteDir, remote);
+    await fs.writeFile(path.join(siteDir, 'noat-site.json'), '{"version":1,"pages":{"x":{}}}');
+    await syncSiteRepo(siteDir, remote);
+    expect(await fs.readdir(siteDir)).toEqual(['.git']);
+  });
+
   it('keeps a page slug stable when the note is renamed', async () => {
     const siteDir = getSiteDir(noatHome);
     await writeNote('Plan.noat.json', note('plan0001', 'Plan', []));

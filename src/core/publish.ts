@@ -120,17 +120,23 @@ async function exists(file: string): Promise<boolean> {
  * this hard-resets rather than merging.
  */
 export async function syncSiteRepo(siteDir: string, remote: string): Promise<void> {
-  await fs.mkdir(siteDir, { recursive: true });
+  const reinit = async (): Promise<void> => {
+    await fs.rm(siteDir, { recursive: true, force: true });
+    await fs.mkdir(siteDir, { recursive: true });
+    await git(siteDir, ['init', '-b', SITE_BRANCH]);
+    await git(siteDir, ['remote', 'add', 'origin', remote]);
+  };
+
   // Checked by .git rather than `rev-parse`: siteDir sits inside the note
   // store, which is itself a git repo.
-  if (!(await exists(path.join(siteDir, '.git')))) {
-    await git(siteDir, ['init', '-b', SITE_BRANCH]);
-  }
-  const currentRemote = await git(siteDir, ['remote', 'get-url', 'origin']).catch(() => undefined);
-  if (currentRemote === undefined) await git(siteDir, ['remote', 'add', 'origin', remote]);
-  else if (currentRemote !== remote) await git(siteDir, ['remote', 'set-url', 'origin', remote]);
+  const currentRemote = (await exists(path.join(siteDir, '.git')))
+    ? await git(siteDir, ['remote', 'get-url', 'origin']).catch(() => undefined)
+    : undefined;
+  // A different remote means a different site: nothing from the old clone
+  // (pages, manifest, remote-tracking refs) may carry over.
+  if (currentRemote !== remote) await reinit();
 
-  await git(siteDir, ['fetch', 'origin']);
+  await git(siteDir, ['fetch', '--prune', 'origin']);
   const remoteRef = `refs/remotes/origin/${SITE_BRANCH}`;
   const hasRemoteBranch = await git(siteDir, ['rev-parse', '--verify', '--quiet', remoteRef]).then(
     () => true,
@@ -140,6 +146,9 @@ export async function syncSiteRepo(siteDir: string, remote: string): Promise<voi
     await git(siteDir, ['checkout', '-B', SITE_BRANCH, remoteRef]);
     await git(siteDir, ['reset', '--hard', remoteRef]);
     await git(siteDir, ['clean', '-fd']);
+  } else {
+    // Nothing published yet: drop leftovers, e.g. from a push that failed.
+    await reinit();
   }
 }
 

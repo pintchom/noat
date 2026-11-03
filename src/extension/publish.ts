@@ -53,12 +53,39 @@ export class SitePublisher implements vscode.Disposable {
   private autoTimer: NodeJS.Timeout | undefined;
   private autoUpdateFailing = false;
 
+  private readonly configSubscription: vscode.Disposable;
+
   constructor(private readonly noatHome: string) {
-    void readManifest(getSiteDir(noatHome)).then((manifest) => this.remember(manifest));
+    void this.refreshPublished();
+    this.configSubscription = vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('noat.publish.repository')) void this.refreshPublished();
+    });
   }
 
   dispose(): void {
     if (this.autoTimer) clearTimeout(this.autoTimer);
+    this.configSubscription.dispose();
+  }
+
+  /**
+   * Learn which notes are published from the remote itself, so saves
+   * auto-update even when the local clone is missing or stale (fresh machine,
+   * pages published elsewhere, repository setting changed).
+   */
+  private async refreshPublished(): Promise<void> {
+    const target = await this.target(false);
+    if (!target) {
+      this.publishedIds = new Set();
+      return;
+    }
+    try {
+      await this.run(async () => {
+        await syncSiteRepo(this.siteDir, target.remote);
+        this.remember(await readManifest(this.siteDir));
+      });
+    } catch (error) {
+      logError('could not read published notes from the publish repository', error);
+    }
   }
 
   private get siteDir(): string {
