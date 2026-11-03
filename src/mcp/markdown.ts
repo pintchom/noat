@@ -29,9 +29,10 @@ function getEditor(): ServerBlockNoteEditor {
 const ANCHOR_PATTERN = /^:\d+(?::\d+)?$/;
 
 /**
- * Replace NOAT-specific inline content (fileLink and noteLink chips) with
- * plain text so the default BlockNote schema can convert blocks to markdown.
- * fileLink becomes code-styled text; noteLink becomes its title; inline math
+ * Replace NOAT-specific inline content (fileLink, noteLink and blockLink
+ * chips) with plain text so the default BlockNote schema can convert blocks to
+ * markdown. fileLink becomes code-styled text; noteLink becomes its title;
+ * blockLink becomes "↳ " plus its label snapshot; inline math
  * becomes `$latex$`. Superscript and subscript become Pandoc's ^x^ / ~x~
  * markers -- the default schema has no such styles and the converter throws on
  * any it does not know. A line anchor right after a fileLink chip merges into
@@ -49,7 +50,7 @@ function sanitizeInline(content: unknown): unknown {
       type?: string;
       text?: string;
       styles?: { code?: boolean; superscript?: boolean; subscript?: boolean };
-      props?: { path?: string; title?: string; latex?: string };
+      props?: { path?: string; title?: string; latex?: string; label?: string };
       content?: unknown;
     };
     if (inline.type === 'text' && (inline.styles?.superscript || inline.styles?.subscript)) {
@@ -64,6 +65,10 @@ function sanitizeInline(content: unknown): unknown {
     }
     if (inline.type === 'noteLink') {
       acc.push({ type: 'text', text: inline.props?.title ?? '', styles: {} });
+      return acc;
+    }
+    if (inline.type === 'blockLink') {
+      acc.push({ type: 'text', text: `↳ ${inline.props?.label ?? ''}`, styles: {} });
       return acc;
     }
     if (inline.type === 'math') {

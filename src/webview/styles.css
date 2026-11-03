@@ -227,6 +227,67 @@ body {
   font-size: 0.85em;
 }
 
+/* A /point chip whose target line was deleted. */
+.noat-block-link-missing {
+  color: var(--vscode-descriptionForeground, #888);
+  text-decoration: line-through;
+}
+
+/* /point pick mode: the next click on a line picks the chip's target. */
+.noat-point-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  box-shadow: 0 6px 18px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  font-size: 0.9em;
+}
+
+.noat-point-banner button {
+  padding: 3px 8px;
+  border: none;
+  border-radius: 4px;
+  background: var(--vscode-button-secondaryBackground, rgba(128, 128, 128, 0.2));
+  color: var(--vscode-button-secondaryForeground, inherit);
+  font: inherit;
+  cursor: pointer;
+}
+
+.noat-pointing .bn-editor,
+.noat-pointing .bn-editor * {
+  cursor: crosshair !important;
+}
+
+.noat-pointing .bn-block-content:hover {
+  border-radius: 4px;
+  outline: 1px dashed var(--vscode-focusBorder);
+  background: var(--vscode-editor-selectionHighlightBackground, rgba(128, 128, 128, 0.12));
+}
+
+/* Where a /point chip lands you. */
+.noat-point-flash {
+  border-radius: 4px;
+  animation: noat-point-flash 1.6s ease-out;
+}
+
+@keyframes noat-point-flash {
+  0%,
+  30% {
+    background: var(--vscode-editor-findMatchHighlightBackground, rgba(255, 200, 0, 0.35));
+  }
+  100% {
+    background: transparent;
+  }
+}
+
 /*
  * Math. KaTeX draws in `currentColor`, so formulas follow the IDE theme on
  * their own; these rules only cover the click-to-edit affordance and the

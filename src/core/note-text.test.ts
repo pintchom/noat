@@ -123,6 +123,20 @@ describe('blocksToPlainText', () => {
     ];
     expect(blocksToPlainText(withChips)).toBe('See Ideas and src/core/note.ts');
   });
+
+  it('extracts blockLink labels', () => {
+    const withPoint: Blocks = [
+      {
+        id: 'p',
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'Back to ', styles: {} },
+          { type: 'blockLink', props: { blockId: 'h1', label: 'Deploy steps' } },
+        ],
+      },
+    ];
+    expect(blocksToPlainText(withPoint)).toBe('Back to Deploy steps');
+  });
 });
 
 describe('blocksToPlainText math', () => {

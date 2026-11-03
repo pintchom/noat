@@ -83,7 +83,7 @@ export function inlineRuns(content: unknown, inherited: Partial<InlineRun> = {})
       href?: string;
       content?: unknown;
       styles?: Record<string, unknown>;
-      props?: { path?: string; title?: string; latex?: string };
+      props?: { path?: string; title?: string; latex?: string; label?: string };
     };
     if (inline.type === 'link') {
       return inlineRuns(inline.content, { ...inherited, link: inline.href, underline: true });
@@ -104,8 +104,8 @@ export function inlineRuns(content: unknown, inherited: Partial<InlineRun> = {})
           ]
         : [];
     }
-    if (inline.type === 'noteLink') {
-      const title = inline.props?.title ?? '';
+    if (inline.type === 'noteLink' || inline.type === 'blockLink') {
+      const title = (inline.type === 'noteLink' ? inline.props?.title : inline.props?.label) ?? '';
       return title.length > 0
         ? [
             {
