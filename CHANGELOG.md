@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.11 — 2026-11-03
+
+- Publish notes to the web, like Notion's "Publish to web". `NOAT: Publish Note to Web` (globe icon on an open note, or right-click in the sidebar) signs in to Netlify once through your browser, gives the note its own site at `https://<title>-<id>.netlify.app/`, and copies the link. Published notes re-publish themselves shortly after you edit them, links between published notes work, and `NOAT: Unpublish Note` deletes the note's site. Prefer git? Set `noat.publish.provider` to `git` to push pages to your own repo for GitHub Pages or any static host.
+- `/point` slash command: click any line in the note to drop a chip linking to it. Clicking the chip scrolls to that line and highlights it; the chip shows the line's current text and is struck through if the line is deleted.
+- File links that point outside the workspace (e.g. `../../.ssh/id_rsa` in a note) are refused instead of opened
+- Publish settings are only read from user settings, so a repo's `.vscode/settings.json` can't redirect where your notes are published
+
 ## 0.1.10 — 2026-10-14
 
 - LaTeX math, rendered with KaTeX. Type `$E = mc^2$` for an inline formula or `$$` for a standalone display equation; click either one to edit its LaTeX and see it re-render. Both are in the `/` menu under "Math". Formulas survive the markdown round trip, so agents can write `$...$` and `$$...$$` through MCP and read them back. Prices like "$5 or $6" are left alone. Select pasted LaTeX and hit `Cmd+Shift+M` (or the ∑ button in the formatting toolbar) to render it in place — a whole `$$…$$` paragraph becomes a display equation, anything else becomes an inline formula. PDF export typesets them too, via MathJax.
