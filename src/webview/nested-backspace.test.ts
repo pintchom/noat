@@ -130,3 +130,52 @@ test('backspace on a top-level paragraph keeps the default merge', () => {
 
   expect(shape(editor)).toEqual(['paragraph(firstsecond)', 'paragraph(third)']);
 });
+
+function pressEnter(editor: BlockNoteEditor): void {
+  const view = editor.prosemirrorView;
+  if (!view) throw new Error('editor is not mounted');
+  const event = new KeyboardEvent('keydown', { key: 'Enter' });
+  view.someProp('handleKeyDown', (handler) => handler(view, event));
+}
+
+test('enter on an empty nested paragraph adds another blank line at the same depth', () => {
+  const editor = createMountedEditor([
+    {
+      type: 'toggleListItem',
+      content: 'toggle',
+      children: [{ id: 'a', type: 'paragraph', content: 'a' }],
+    },
+    { type: 'paragraph', content: 'after' },
+  ]);
+  editor.setTextCursorPosition('a', 'end');
+
+  // The first Enter splits "a"; the next two used to outdent the blank line.
+  pressEnter(editor);
+  pressEnter(editor);
+  pressEnter(editor);
+  editor.insertInlineContent('b');
+
+  expect(shape(editor)).toEqual([
+    'toggleListItem(toggle)',
+    '  paragraph(a)',
+    '  paragraph()',
+    '  paragraph()',
+    '  paragraph(b)',
+    'paragraph(after)',
+  ]);
+  const ids = flattenIds(editor.document);
+  expect(new Set(ids).size).toBe(ids.length);
+});
+
+test('enter on an empty top-level paragraph keeps the default new block', () => {
+  const editor = createMountedEditor([{ id: 'top', type: 'paragraph' }]);
+  editor.setTextCursorPosition('top', 'start');
+
+  pressEnter(editor);
+
+  expect(shape(editor)).toEqual(['paragraph()', 'paragraph()']);
+});
+
+function flattenIds(blocks: BlockNoteEditor['document']): string[] {
+  return blocks.flatMap((block) => [block.id, ...flattenIds(block.children)]);
+}
