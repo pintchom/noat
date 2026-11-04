@@ -198,5 +198,10 @@ describe('noteToHtml', () => {
     expect(page).toContain("securityLevel: 'strict'");
     // The script ships as readable code too, so a blocked CDN loses nothing.
     expect(page).toContain('<code class="language-mermaid">flowchart TD\n  A --&gt; B</code>');
+    // The <pre> carries the block id that /point chips target, so the drawn
+    // figure has to inherit it. Asserted on the emitted script: the swap only
+    // happens in a browser.
+    expect(page).toContain('<pre id="d">');
+    expect(page).toContain('figure.id = pre.id');
   });
 });

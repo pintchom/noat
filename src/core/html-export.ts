@@ -337,11 +337,14 @@ const dark = matchMedia('(prefers-color-scheme: dark)').matches;
 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default' });
 document.querySelectorAll('pre > code.language-mermaid').forEach(async (code, i) => {
   try {
+    const pre = code.parentElement;
     const { svg } = await mermaid.render('noat-diagram-' + i, code.textContent || '');
     const figure = document.createElement('div');
     figure.className = 'diagram';
+    // The <pre> carries the block id that /point chips and #hash links target.
+    if (pre.id) figure.id = pre.id;
     figure.innerHTML = svg;
-    code.parentElement.replaceWith(figure);
+    pre.replaceWith(figure);
   } catch {
     // Leave the script visible; an unparseable diagram still reads as text.
   }
