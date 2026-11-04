@@ -50,6 +50,10 @@ export function NoteEditor({
   const editor = useCreateBlockNote({
     schema,
     extensions: [smartArrows, nestedBackspace, mathInput],
+    // Turn on the browser's native spell checker (red squiggles + context-menu
+    // suggestions) on the editable body. ProseMirror leaves spellcheck to the
+    // browser default, which webviews start with off.
+    domAttributes: { editor: { spellcheck: 'true' } },
     // Local images (picked, pasted, or dropped) are stored in the note
     // store's assets dir; notes keep store-relative URLs that only resolve
     // to loadable webview URIs at render time.
@@ -439,6 +443,7 @@ export function NoteEditor({
           className="noat-title"
           value={title}
           placeholder="Untitled"
+          spellCheck={true}
           onChange={(event) => {
             setTitle(event.target.value);
             emit(event.target.value, icon);
