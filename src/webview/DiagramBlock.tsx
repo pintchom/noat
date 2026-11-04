@@ -1,7 +1,8 @@
 import { createReactBlockSpec } from '@blocknote/react';
-// ponytail: the whole of Mermaid (~2.7 MB minified, cytoscape included) lands
-// in the webview bundle; import mermaid/core and register only the diagram
-// types we draw if the bundle ever needs to slim down.
+// shortcut: Mermaid is 3.5 MB of the webview bundle (9.08 vs 5.57 MB without)
+// but adds only ~10-40 ms to opening a note, since V8 parses it lazily. Loading
+// it only for notes with a diagram needs ESM code splitting in the webview;
+// revisit if note-open time ever becomes a complaint.
 import mermaid from 'mermaid';
 import { useEffect, useRef, useState } from 'react';
 import { generateDiagram } from './diagram-client';
