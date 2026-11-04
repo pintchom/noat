@@ -140,6 +140,7 @@ type BlockProps = Record<string, unknown> & {
   caption?: string;
   previewWidth?: number;
   latex?: string;
+  code?: string;
   start?: number;
 };
 
@@ -262,6 +263,13 @@ function renderBlock(block: Block, links: HtmlLinkResolver): string {
     }
     case 'equation':
       return `<div${blockAttrs(block, 'equation')}>${renderMath(props.latex ?? '', true)}</div>${nested}`;
+    // Drawing this needs Mermaid in the page; publish the script instead, as
+    // PDF export does. shortcut: no picture on the web page, load Mermaid from
+    // a CDN (as the KaTeX stylesheet already is) if published diagrams matter.
+    case 'mermaid':
+      return `<pre${blockAttrs(block)}><code class="language-mermaid">${escapeHtml(
+        props.code ?? ''
+      )}</code></pre>${nested}`;
     case 'table':
       return renderTable(content, links);
     case 'image':
@@ -309,6 +317,39 @@ export function renderBlocks(blocks: Block[], links: HtmlLinkResolver): string {
 function hasMath(blocks: Block[]): boolean {
   return JSON.stringify(blocks).match(/"type":"(math|equation)"/) !== null;
 }
+
+function hasDiagram(blocks: Block[]): boolean {
+  return JSON.stringify(blocks).match(/"type":"mermaid"/) !== null;
+}
+
+/**
+ * Draws the diagram scripts the page ships as `<pre><code class="language-mermaid">`.
+ * Added only when the note has one, and only ever an addition: with scripts off
+ * or the CDN blocked, the reader still gets the script as code.
+ * `securityLevel: 'strict'` matches the editor, since a model may have written
+ * the diagram.
+ * shortcut: pinned to the 11.x line rather than the exact bundled version; pin
+ * it exactly if a published page ever draws differently from the editor.
+ */
+const MERMAID_SCRIPT = `<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default' });
+document.querySelectorAll('pre > code.language-mermaid').forEach(async (code, i) => {
+  try {
+    const pre = code.parentElement;
+    const { svg } = await mermaid.render('noat-diagram-' + i, code.textContent || '');
+    const figure = document.createElement('div');
+    figure.className = 'diagram';
+    // The <pre> carries the block id that /point chips and #hash links target.
+    if (pre.id) figure.id = pre.id;
+    figure.innerHTML = svg;
+    pre.replaceWith(figure);
+  } catch {
+    // Leave the script visible; an unparseable diagram still reads as text.
+  }
+});
+</script>`;
 
 /** A note as a complete, standalone web page. */
 export function noteToHtml(
@@ -359,7 +400,7 @@ export function noteToHtml(
 ${body}
     </article>
     <footer>Published with NOAT · Updated ${escapeHtml(note.updatedAt.slice(0, 10))}</footer>
-  </main>
+  </main>${hasDiagram(note.blocks) ? `\n${MERMAID_SCRIPT}` : ''}
 </body>
 </html>
 `;
@@ -424,6 +465,8 @@ details.toggle > summary > :is(h2, h3, h4, h5, h6) { display: inline; }
 details.toggle > :not(summary) { padding-left: 1.4em; }
 .children { padding-left: 1.6em; }
 .equation { margin: 0.8em 0; overflow-x: auto; text-align: center; }
+.diagram { margin: 0.8em 0; overflow-x: auto; text-align: center; }
+.diagram svg { max-width: 100%; height: auto; }
 figure { margin: 1em 0; }
 figure img, figure video { max-width: 100%; height: auto; border-radius: 4px; display: block; }
 figcaption { color: var(--muted); font-size: 0.875em; margin-top: 6px; }

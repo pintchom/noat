@@ -3,13 +3,16 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { ASSET_URL_PREFIX, assetFileName } from '../core/assets';
+import { type DiagramLlmConfig, type DiagramRepair, generateMermaid } from '../core/diagram';
 import type {
   HostToWebviewMessage,
   NoteLinkResult,
   WebviewToHostMessage,
 } from '../core/editor-messages';
+import { parseNote } from '../core/note';
 import { rankNoteLinks } from '../core/note-link-search';
 import { type NoteListing, listAllNotes, resolveNotePath } from '../core/note-listing';
+import { blocksToPlainText } from '../core/note-text';
 import { getAssetsDir, getNoatHome } from '../core/paths';
 import { repoKeyToLabel } from '../core/repo-key';
 import { WebviewEchoes } from '../core/webview-echoes';
@@ -74,6 +77,36 @@ async function saveAsset(
     );
     return undefined;
   }
+}
+
+/**
+ * Generate a Mermaid diagram for the /diagram slash item. The model runs
+ * wherever `noat.diagram.baseUrl` points — a local OpenAI-compatible server by
+ * default, so notes never leave the machine and generation costs nothing.
+ * The note's own text goes along as context, so "the retry path" means what it
+ * means in this note.
+ */
+async function generateDiagram(
+  document: vscode.TextDocument,
+  prompt: string,
+  repair?: DiagramRepair
+): Promise<string> {
+  const settings = vscode.workspace.getConfiguration('noat');
+  const config: DiagramLlmConfig = {
+    baseUrl: settings.get<string>('diagram.baseUrl', 'http://127.0.0.1:8000/v1'),
+    model: settings.get<string>('diagram.model', ''),
+    apiKey: settings.get<string>('diagram.apiKey', ''),
+  };
+  const context = (() => {
+    try {
+      const note = parseNote(document.getText());
+      return `${note.title}\n${blocksToPlainText(note.blocks)}`;
+    } catch {
+      // An unparseable note still deserves a diagram; just skip the context.
+      return '';
+    }
+  })();
+  return generateMermaid(config, prompt, context, repair);
 }
 
 /** Follow a noteLink chip: open the linked note beside this one. */
@@ -217,6 +250,17 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
             post({ type: 'assetSaved', requestId: message.requestId, url });
           });
           break;
+        case 'generateDiagram':
+          void generateDiagram(document, message.prompt, message.repair).then(
+            (code) => post({ type: 'diagramGenerated', requestId: message.requestId, code }),
+            (error: unknown) =>
+              post({
+                type: 'diagramGenerated',
+                requestId: message.requestId,
+                error: error instanceof Error ? error.message : String(error),
+              })
+          );
+          break;
       }
     });
 
@@ -245,7 +289,22 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
   <title>NOAT Note</title>
 </head>
 <body>
-  <div id="root"></div>
+  <!-- Replaced when React mounts; visible if the bundle never runs. -->
+  <div id="root">Starting NOAT…</div>
+  <script nonce="${nonce}">
+    // A webview that fails before React mounts is just a blank tab, and its
+    // console lives behind "Developer: Open Webview Developer Tools". Put the
+    // reason on the page instead. Capture phase, so a bundle that fails to
+    // load at all — an error that doesn't bubble — is caught too.
+    window.addEventListener('error', (event) => {
+      const root = document.getElementById('root');
+      if (!root || root.childElementCount > 0) return;
+      const target = event.target;
+      root.textContent = target && target.src
+        ? 'NOAT: could not load the editor bundle (' + target.src + ')'
+        : 'NOAT: the editor failed to start \u2014 ' + (event.message || 'unknown error');
+    }, true);
+  </script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

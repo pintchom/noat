@@ -24,6 +24,7 @@ import { searchNotes } from './note-search-client';
 import { insertBlockLinkAt } from './point-link';
 import { schema } from './schema';
 import { smartArrows } from './smart-arrows';
+import { useVsCodeDarkTheme } from './use-dark-theme';
 import '@blocknote/mantine/style.css';
 import 'katex/dist/katex.min.css';
 
@@ -31,24 +32,7 @@ import 'katex/dist/katex.min.css';
 // mirroring how BlockNote's own Emoji slash item opens the ":" picker.
 const NOTE_PICKER_TRIGGER = '※';
 
-function readDarkTheme(): boolean {
-  return (
-    document.body.classList.contains('vscode-dark') ||
-    document.body.classList.contains('vscode-high-contrast')
-  );
-}
-
-function useVsCodeDarkTheme(): boolean {
-  const [isDark, setIsDark] = useState(readDarkTheme);
-
-  useEffect(() => {
-    const observer = new MutationObserver(() => setIsDark(readDarkTheme()));
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
-
-  return isDark;
-}
+const DIAGRAM_ICON = '◈';
 
 export function NoteEditor({
   note,
@@ -231,11 +215,31 @@ export function NoteEditor({
     return () => window.removeEventListener('keydown', onKeyDown, true);
   });
 
-  // Both math items open an empty LaTeX field that takes focus immediately.
-  // The slash menu otherwise closes on the editor's next selection change,
-  // which never comes once focus has left the editor -- so it would hang over
-  // the very field you are meant to type into.
+  // Items that open a field of their own close the slash menu first. The menu
+  // otherwise closes on the editor's next selection change, which never comes
+  // once focus has left the editor -- so it would hang over the very field you
+  // are meant to type into.
   const closeSlashMenu = (): void => editor.getExtension(SuggestionMenu)?.closeMenu();
+
+  // "/diagram" alone opens an empty diagram block to type a description into;
+  // "/diagram <description>" skips that step and generates straight away.
+  const diagramItem = (description: string): DefaultReactSuggestionItem => ({
+    title: description === '' ? 'Diagram' : `Diagram: ${description}`,
+    subtext:
+      description === ''
+        ? 'Describe a diagram, generate it locally'
+        : 'Generate this diagram locally',
+    aliases: ['diagram', 'mermaid', 'chart', 'flowchart', 'graph', 'sequence'],
+    group: 'Notes',
+    icon: <span>{DIAGRAM_ICON}</span>,
+    onItemClick: () => {
+      closeSlashMenu();
+      insertOrUpdateBlockForSlashMenu(editor, {
+        type: 'mermaid',
+        props: { prompt: description },
+      });
+    },
+  });
 
   // Own group rather than "Basic blocks":  the slash menu draws a header per
   // contiguous run of items, so reusing a default group name from the end of
@@ -265,11 +269,22 @@ export function NoteEditor({
     },
   ];
 
-  const getSlashMenuItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
-    filterSuggestionItems(
-      [...getDefaultReactSlashMenuItems(editor), pageLinkItem, pointItem, ...mathItems],
+  const getSlashMenuItems = async (query: string): Promise<DefaultReactSuggestionItem[]> => {
+    // Anything after "/diagram " is the description, spaces and all -- the
+    // suggestion query keeps growing until the item is picked.
+    const described = query.match(/^diagram\s+(.*)$/i)?.[1];
+    if (described !== undefined) return [diagramItem(described.trim())];
+    return filterSuggestionItems(
+      [
+        ...getDefaultReactSlashMenuItems(editor),
+        pageLinkItem,
+        pointItem,
+        diagramItem(''),
+        ...mathItems,
+      ],
       query
     );
+  };
 
   const getNoteItems = async (query: string): Promise<DefaultReactSuggestionItem[]> =>
     (await searchNotes(query)).map((linked) => ({

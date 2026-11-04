@@ -10,6 +10,7 @@ import {
 } from '@blocknote/core';
 import { createParser } from 'prosemirror-highlight/shiki';
 import { BlockLink } from './BlockLink';
+import { DiagramBlock } from './DiagramBlock';
 import { createEquationBlockSpec } from './Equation';
 import { FileLink } from './FileLink';
 import { InlineMath } from './Math';
@@ -72,6 +73,7 @@ export const schema = BlockNoteSchema.create({
     ...defaultBlockSpecs,
     codeBlock,
     equation: createEquationBlockSpec(),
+    mermaid: DiagramBlock(),
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,

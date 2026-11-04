@@ -456,3 +456,214 @@ body.vscode-high-contrast .bn-block-content[data-content-type="codeBlock"] .shik
     "Cascadia Code", "JetBrains Mono", "Fira Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   font-size: 0.9em;
 }
+
+/*
+ * Diagram block (/diagram). The rendered SVG sits on the note's own
+ * background; the description field and Mermaid source only appear while the
+ * block is being edited or when the source doesn't parse.
+ */
+/* Full width so the figure's max-width has a definite box to clamp against --
+   BlockNote's block content is a flex row, where an auto-width child would
+   shrink to the diagram and leave the drag unbounded. */
+.noat-diagram {
+  margin: 6px 0;
+  width: 100%;
+}
+
+/* `resize` needs a clipped box; the bottom strip keeps the browser's own grip
+   handle clear of the diagram, where it would otherwise swallow the click that
+   opens the full-size view. */
+.noat-diagram-figure {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  resize: horizontal;
+  width: fit-content;
+  min-width: 140px;
+  max-width: 100%;
+  padding-bottom: 12px;
+}
+
+/* Until it has been dragged, the diagram keeps the size Mermaid drew it at. */
+.noat-diagram-sized .noat-diagram-svg svg {
+  width: 100%;
+  max-width: none !important;
+}
+
+/* The rendered diagram is the button that opens the full-size view. */
+.noat-diagram-svg {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: zoom-in;
+}
+
+.noat-diagram-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* [open] rather than the bare element: a plain display rule would beat the
+   UA's `dialog:not([open]) { display: none }` and leave it showing. */
+.noat-diagram-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.noat-diagram-dialog {
+  width: 92vw;
+  height: 92vh;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 8px;
+  /* The dialog sits in the top layer, so it needs an opaque ground of its own. */
+  background: var(--vscode-editor-background, Canvas);
+  color: var(--vscode-editor-foreground, CanvasText);
+}
+
+.noat-diagram-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.noat-diagram-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
+}
+
+.noat-diagram-toolbar button {
+  min-width: 26px;
+  padding: 2px 8px;
+  border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background, Canvas));
+  color: var(--vscode-editor-foreground, CanvasText);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.noat-diagram-scale,
+.noat-diagram-hint {
+  color: var(--vscode-descriptionForeground, #8a8a8a);
+  font-size: 11px;
+}
+
+.noat-diagram-scale {
+  min-width: 40px;
+  text-align: center;
+}
+
+.noat-diagram-close {
+  margin-left: auto;
+}
+
+.noat-diagram-viewport {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+}
+
+/* The svg keeps its viewBox aspect, so sizing the canvas to a multiple of the
+   viewport shows the whole diagram at 100% and scrolls above it. Mermaid caps
+   its own svg with an inline max-width, so this has to shout. */
+.noat-diagram-canvas svg {
+  width: 100%;
+  height: 100%;
+  max-width: none !important;
+}
+
+.noat-diagram-edit {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  opacity: 0;
+  border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  color: var(--vscode-editor-foreground);
+  cursor: pointer;
+}
+
+.noat-diagram-figure:hover .noat-diagram-edit,
+.noat-diagram-edit:focus-visible {
+  opacity: 1;
+}
+
+.noat-diagram-status {
+  padding: 10px 12px;
+  color: var(--vscode-descriptionForeground, #8a8a8a);
+  font-size: 13px;
+}
+
+.noat-diagram-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+}
+
+.noat-diagram-row {
+  display: flex;
+  gap: 6px;
+}
+
+.noat-diagram-input {
+  flex: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.noat-diagram-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+.noat-diagram-generate {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.noat-diagram-generate:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.noat-diagram-source {
+  min-height: 90px;
+  resize: vertical;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  background: var(--vscode-textCodeBlock-background, rgba(128, 128, 128, 0.15));
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-editor-font-family, ui-monospace), ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.noat-diagram-error {
+  color: var(--vscode-errorForeground, #f14c4c);
+  font-size: 12px;
+  white-space: pre-wrap;
+}

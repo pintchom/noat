@@ -209,6 +209,16 @@ function promoteBlock(block: Block): Block {
 
   if (block.type === 'codeBlock') {
     const language = (block as { props?: { language?: string } }).props?.language ?? '';
+    if (language === 'mermaid') {
+      return withChildren(
+        {
+          id: block.id,
+          type: 'mermaid',
+          props: { code: only.text, prompt: '' },
+        } as unknown as Block,
+        block
+      );
+    }
     return MATH_LANGUAGES.has(language) ? equation(only.text) : block;
   }
   if (block.type !== 'paragraph') return block;
@@ -263,24 +273,31 @@ function mapBlockTree(
 }
 
 /**
- * Equation blocks leave as a ```math fence rather than a `$$...$$` paragraph:
- * display LaTeX is routinely multi-line (aligned environments, cases,
- * matrices) and remark-stringify cannot carry newlines through a paragraph
- * without mangling them. GitHub renders the same fence as display math.
+ * Blocks the default BlockNote schema has never heard of leave as fenced code
+ * in the language they are written in: a diagram as ```mermaid (what GitHub
+ * and most viewers already draw), an equation as ```math rather than a
+ * `$$...$$` paragraph — display LaTeX is routinely multi-line (aligned
+ * environments, cases, matrices) and remark-stringify cannot carry newlines
+ * through a paragraph without mangling them.
  */
 function sanitizeBlock(block: Block): Block {
-  if (block.type === 'equation') {
-    const latex = (block as { props?: { latex?: string } }).props?.latex ?? '';
-    return withChildren(
+  // An empty text node is not a valid ProseMirror child.
+  const fence = (language: string, code: string): Block =>
+    withChildren(
       {
         id: block.id,
         type: 'codeBlock',
-        props: { language: 'math' },
-        // An empty text node is not a valid ProseMirror child.
-        content: latex.length > 0 ? [{ type: 'text', text: latex, styles: {} }] : [],
+        props: { language },
+        content: code.length > 0 ? [{ type: 'text', text: code, styles: {} }] : [],
       } as unknown as Block,
       block
     );
+
+  if (block.type === 'mermaid') {
+    return fence('mermaid', (block as { props?: { code?: string } }).props?.code ?? '');
+  }
+  if (block.type === 'equation') {
+    return fence('math', (block as { props?: { latex?: string } }).props?.latex ?? '');
   }
   const props = (block as { props?: unknown }).props;
   return {
