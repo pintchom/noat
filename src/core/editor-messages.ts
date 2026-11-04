@@ -20,6 +20,8 @@ export type HostToWebviewMessage =
   | { type: 'init'; text: string; assetsBaseUri: string }
   | { type: 'update'; text: string }
   | { type: 'fileResults'; requestId: number; files: string[] }
+  /** Short text preview of a workspace file; absent when there's none to show. */
+  | { type: 'filePreview'; requestId: number; preview?: string }
   | { type: 'noteResults'; requestId: number; notes: NoteLinkResult[] }
   /** url is the store-relative asset URL ("assets/<file>"); absent on failure. */
   | { type: 'assetSaved'; requestId: number; url?: string }
@@ -31,6 +33,7 @@ export type WebviewToHostMessage =
   | { type: 'edit'; text: string }
   | { type: 'searchFiles'; requestId: number; query: string }
   | { type: 'openFile'; path: string }
+  | { type: 'previewFile'; requestId: number; path: string }
   | { type: 'searchNotes'; requestId: number; query: string }
   | { type: 'openNote'; notePath: string }
   | { type: 'saveAsset'; requestId: number; name: string; dataBase64: string }

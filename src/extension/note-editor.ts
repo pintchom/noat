@@ -9,6 +9,7 @@ import type {
   NoteLinkResult,
   WebviewToHostMessage,
 } from '../core/editor-messages';
+import { filePreviewFromBytes } from '../core/file-preview';
 import { parseNote } from '../core/note';
 import { rankNoteLinks } from '../core/note-link-search';
 import { type NoteListing, listAllNotes, resolveNotePath } from '../core/note-listing';
@@ -40,6 +41,20 @@ async function openWorkspaceFile(relativePath: string): Promise<void> {
     });
   } catch {
     vscode.window.showWarningMessage(`NOAT: file not found in this workspace: ${relativePath}`);
+  }
+}
+
+const PREVIEW_MAX_BYTES = 64 * 1024;
+
+/** Read the leading bytes of a workspace file for the @-mention hover preview. */
+async function readFilePreview(relativePath: string): Promise<string | undefined> {
+  const uri = resolveWorkspacePath(relativePath);
+  if (!uri) return undefined;
+  try {
+    const bytes = await vscode.workspace.fs.readFile(uri);
+    return filePreviewFromBytes(bytes.subarray(0, PREVIEW_MAX_BYTES));
+  } catch {
+    return undefined;
   }
 }
 
@@ -236,6 +251,11 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
           break;
         case 'openFile':
           void openWorkspaceFile(message.path);
+          break;
+        case 'previewFile':
+          void readFilePreview(message.path).then((preview) => {
+            post({ type: 'filePreview', requestId: message.requestId, preview });
+          });
           break;
         case 'searchNotes':
           void searchLinkableNotes(noatHome, message.query).then((notes) => {
