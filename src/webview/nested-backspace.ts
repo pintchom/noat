@@ -22,13 +22,18 @@ const inNestedParagraph = ($from: ResolvedPos): boolean =>
  *
  * Enter: BlockNote's Enter on an empty nested paragraph lifts it too, so blank
  * lines can't be stacked inside a toggle. Split off a new empty paragraph at
- * the same depth instead; Shift-Tab is the way out.
+ * the same depth instead; Shift-Tab is the way out. Enter inside a collapsed
+ * toggle's title keeps the hidden content with that toggle.
  *
- * Priority 100 (default) runs these before BlockNote's own handlers at
- * priority 50.
+ * Priority 200 runs these before BlockNote's block shortcuts (101 and up, e.g.
+ * the toggle item's own Enter) and its core handlers (50). Every handler
+ * bails out on anything but its narrow case, so list, code and table keys
+ * still reach their own handlers. The slash and @ menus catch Enter in a DOM
+ * capture listener, which runs before any keymap.
  */
 const nestedBackspaceKeymap = Extension.create({
   name: 'noatNestedBackspace',
+  priority: 200,
   addKeyboardShortcuts() {
     const joinInsteadOfLift = (): boolean => {
       const { $from, empty } = this.editor.state.selection;
@@ -51,13 +56,43 @@ const nestedBackspaceKeymap = Extension.create({
         return true;
       });
     };
+    // BlockNote's split hands a block's children to the second half. A
+    // collapsed toggle hides them, so Enter at the end of its title moved its
+    // content into the new empty toggle below. Keep them with the first half.
+    // At the very start of the title the default is right: the title moves
+    // down and its content follows it.
+    const splitKeepingHiddenChildren = (): boolean => {
+      const { $from, empty } = this.editor.state.selection;
+      if (!empty || $from.parentOffset === 0) return false;
+      const container = $from.node(-1);
+      const children = container?.lastChild;
+      if (container?.type.name !== 'blockContainer' || container.childCount < 2 || !children)
+        return false;
+      const content = this.editor.view.nodeDOM($from.before());
+      const wrapper = content instanceof HTMLElement && content.querySelector('.bn-toggle-wrapper');
+      if (!wrapper || wrapper.getAttribute('data-show-children') !== 'false') return false;
+      // List items keep their type when split; toggle headings continue as a paragraph.
+      const secondType =
+        $from.parent.type.name === 'toggleListItem'
+          ? $from.parent.type
+          : this.editor.schema.nodes.paragraph;
+      if (!secondType) return false;
+      return this.editor.commands.command(({ tr }) => {
+        tr.delete($from.end(-1) - children.nodeSize, $from.end(-1));
+        tr.split($from.pos, 2, [{ type: container.type }, { type: secondType }]);
+        // $from.pos + 1 is just inside the first half's blockContainer, after its content.
+        tr.insert($from.pos + 1, children);
+        tr.scrollIntoView();
+        return true;
+      });
+    };
     // Word (Alt) and line (Mod) deletes hit the same boundary at the start
     // of a block, so all three need the guard.
     return {
       Backspace: joinInsteadOfLift,
       'Alt-Backspace': joinInsteadOfLift,
       'Mod-Backspace': joinInsteadOfLift,
-      Enter: splitInsteadOfLift,
+      Enter: () => splitInsteadOfLift() || splitKeepingHiddenChildren(),
     };
   },
 });
