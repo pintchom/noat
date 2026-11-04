@@ -179,5 +179,24 @@ describe('noteToHtml', () => {
     expect(page).toContain('<div class="icon">🚀</div>');
     expect(page).toContain('Updated 2026-11-03');
     expect(page).not.toContain('katex.min.css');
+    expect(page).not.toContain('mermaid.esm.min.mjs');
+  });
+
+  it('loads Mermaid only for a note that has a diagram, keeping the script as fallback', () => {
+    const page = noteToHtml(
+      {
+        title: 'Pipeline',
+        icon: '',
+        updatedAt: '2026-11-04T12:00:00.000Z',
+        blocks: [
+          { id: 'd', type: 'mermaid', props: { code: 'flowchart TD\n  A --> B' } },
+        ] as unknown as Blocks,
+      },
+      links
+    );
+    expect(page).toContain('mermaid.esm.min.mjs');
+    expect(page).toContain("securityLevel: 'strict'");
+    // The script ships as readable code too, so a blocked CDN loses nothing.
+    expect(page).toContain('<code class="language-mermaid">flowchart TD\n  A --&gt; B</code>');
   });
 });

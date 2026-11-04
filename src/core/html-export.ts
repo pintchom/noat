@@ -318,6 +318,36 @@ function hasMath(blocks: Block[]): boolean {
   return JSON.stringify(blocks).match(/"type":"(math|equation)"/) !== null;
 }
 
+function hasDiagram(blocks: Block[]): boolean {
+  return JSON.stringify(blocks).match(/"type":"mermaid"/) !== null;
+}
+
+/**
+ * Draws the diagram scripts the page ships as `<pre><code class="language-mermaid">`.
+ * Added only when the note has one, and only ever an addition: with scripts off
+ * or the CDN blocked, the reader still gets the script as code.
+ * `securityLevel: 'strict'` matches the editor, since a model may have written
+ * the diagram.
+ * shortcut: pinned to the 11.x line rather than the exact bundled version; pin
+ * it exactly if a published page ever draws differently from the editor.
+ */
+const MERMAID_SCRIPT = `<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default' });
+document.querySelectorAll('pre > code.language-mermaid').forEach(async (code, i) => {
+  try {
+    const { svg } = await mermaid.render('noat-diagram-' + i, code.textContent || '');
+    const figure = document.createElement('div');
+    figure.className = 'diagram';
+    figure.innerHTML = svg;
+    code.parentElement.replaceWith(figure);
+  } catch {
+    // Leave the script visible; an unparseable diagram still reads as text.
+  }
+});
+</script>`;
+
 /** A note as a complete, standalone web page. */
 export function noteToHtml(
   note: Pick<NoteFile, 'title' | 'icon' | 'updatedAt' | 'blocks'>,
@@ -367,7 +397,7 @@ export function noteToHtml(
 ${body}
     </article>
     <footer>Published with NOAT · Updated ${escapeHtml(note.updatedAt.slice(0, 10))}</footer>
-  </main>
+  </main>${hasDiagram(note.blocks) ? `\n${MERMAID_SCRIPT}` : ''}
 </body>
 </html>
 `;
@@ -432,6 +462,8 @@ details.toggle > summary > :is(h2, h3, h4, h5, h6) { display: inline; }
 details.toggle > :not(summary) { padding-left: 1.4em; }
 .children { padding-left: 1.6em; }
 .equation { margin: 0.8em 0; overflow-x: auto; text-align: center; }
+.diagram { margin: 0.8em 0; overflow-x: auto; text-align: center; }
+.diagram svg { max-width: 100%; height: auto; }
 figure { margin: 1em 0; }
 figure img, figure video { max-width: 100%; height: auto; border-radius: 4px; display: block; }
 figcaption { color: var(--muted); font-size: 0.875em; margin-top: 6px; }

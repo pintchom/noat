@@ -40,7 +40,7 @@ Results merge via reciprocal rank fusion. Everything runs locally — no API key
 
 ### Diagrams from a description
 
-Type `/diagram a sequence of the login flow` (or pick **Diagram** from the `/` or `+` menu) and a local model writes the Mermaid script for it, using the note itself as context. The script — not a picture — is what gets stored in the note, so diagrams stay diffable in git, re-render in your IDE's light or dark theme, and can be edited by hand or regenerated from the description. Drag a diagram's bottom-right corner to resize it in the note (the size is stored with it), or click it to open it full size, where you can zoom in (the toolbar buttons or ctrl+scroll) and scroll around a big one.
+Type `/diagram a sequence of the login flow` (or pick **Diagram** from the `/` or `+` menu) and a local model writes the Mermaid script for it, using the note itself as context. The script — not a picture — is what gets stored in the note, so diagrams stay diffable in git, re-render in your IDE's light or dark theme, and can be edited by hand or regenerated from the description. Drag a diagram's bottom-right corner to resize it in the note (the size is stored with it), or click it to open it full size, where you can zoom in (the toolbar buttons or ctrl+scroll) and scroll around a big one. Published pages draw them as well.
 
 Generation talks to any OpenAI-compatible endpoint; it defaults to `http://127.0.0.1:8000/v1`, so with a local server ([oMLX](https://omlx.app), LM Studio, Ollama, llama.cpp) nothing leaves your machine and nothing costs tokens:
 

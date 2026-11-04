@@ -62,6 +62,7 @@ export const DiagramBlock = createReactBlockSpec(
       const inputRef = useRef<HTMLInputElement>(null);
       const dialogRef = useRef<HTMLDialogElement>(null);
       const viewportRef = useRef<HTMLDivElement>(null);
+      const widthAtPointerDown = useRef(0);
 
       // A block inserted from "/diagram" with nothing to generate yet is
       // waiting for a description — put the caret in it.
@@ -201,9 +202,18 @@ export const DiagramBlock = createReactBlockSpec(
               style={width > 0 ? { width: `${width}px` } : undefined}
               // CSS `resize` writes the new width straight onto the element, so the
               // end of a drag is where it gets read back and stored in the note.
+              // Compare against the width this gesture started at, not the stored
+              // prop: a plain click to open or edit also lands here, and on a
+              // never-resized diagram the prop is 0, so comparing to it would
+              // dirty the note and pin the size on every click.
+              onPointerDown={(event) => {
+                widthAtPointerDown.current = Math.round(
+                  event.currentTarget.getBoundingClientRect().width
+                );
+              }}
               onPointerUp={(event) => {
                 const dragged = Math.round(event.currentTarget.getBoundingClientRect().width);
-                if (dragged !== width) save({ width: dragged });
+                if (dragged !== widthAtPointerDown.current) save({ width: dragged });
               }}
             >
               <button
