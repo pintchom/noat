@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { BlockNoteEditor, type PartialBlock } from '@blocknote/core';
+import { TextSelection } from '@tiptap/pm/state';
 import { expect, test } from 'vitest';
 import { nestedBackspace } from './nested-backspace';
 
@@ -179,3 +180,73 @@ test('enter on an empty top-level paragraph keeps the default new block', () => 
 function flattenIds(blocks: BlockNoteEditor['document']): string[] {
   return blocks.flatMap((block) => [block.id, ...flattenIds(block.children)]);
 }
+
+const collapsedToggle: PartialBlock[] = [
+  {
+    id: 'math',
+    type: 'toggleListItem',
+    content: 'math',
+    children: [{ type: 'paragraph', content: 'notes' }],
+  },
+];
+
+test('enter at the end of a collapsed toggle leaves its content in place', () => {
+  storage.clear(); // no stored open state: the toggle renders collapsed
+  const editor = createMountedEditor(collapsedToggle);
+  editor.setTextCursorPosition('math', 'end');
+
+  pressEnter(editor);
+  editor.insertInlineContent('next');
+
+  expect(shape(editor)).toEqual([
+    'toggleListItem(math)',
+    '  paragraph(notes)',
+    'toggleListItem(next)',
+  ]);
+});
+
+test('enter mid-title of a collapsed toggle keeps the content with the first half', () => {
+  storage.clear();
+  const editor = createMountedEditor(collapsedToggle);
+  editor.setTextCursorPosition('math', 'start');
+  const view = editor.prosemirrorView;
+  if (!view) throw new Error('editor is not mounted');
+  view.dispatch(
+    view.state.tr.setSelection(
+      TextSelection.near(view.state.doc.resolve(view.state.selection.from + 2))
+    )
+  );
+
+  pressEnter(editor);
+
+  expect(shape(editor)).toEqual(['toggleListItem(ma)', '  paragraph(notes)', 'toggleListItem(th)']);
+});
+
+test('enter at the start of a collapsed toggle title still pushes it down with its content', () => {
+  storage.clear();
+  const editor = createMountedEditor(collapsedToggle);
+  editor.setTextCursorPosition('math', 'start');
+
+  pressEnter(editor);
+
+  expect(shape(editor)).toEqual(['toggleListItem()', 'toggleListItem(math)', '  paragraph(notes)']);
+});
+
+test('enter mid-title of an open toggle keeps the default split', () => {
+  storage.clear();
+  storage.set('toggle-math', 'true'); // BlockNote's stored open state
+  const editor = createMountedEditor(collapsedToggle);
+  editor.setTextCursorPosition('math', 'start');
+  const view = editor.prosemirrorView;
+  if (!view) throw new Error('editor is not mounted');
+  view.dispatch(
+    view.state.tr.setSelection(
+      TextSelection.near(view.state.doc.resolve(view.state.selection.from + 2))
+    )
+  );
+
+  pressEnter(editor);
+
+  // Visible children stay under the text that sat above them.
+  expect(shape(editor)).toEqual(['toggleListItem(ma)', 'toggleListItem(th)', '  paragraph(notes)']);
+});
