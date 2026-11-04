@@ -133,6 +133,22 @@ describe('renderBlocks', () => {
     expect(html).toContain('<tr><th>H</th></tr><tr><td>v</td></tr>');
   });
 
+  it('publishes a diagram as its Mermaid script, not an empty paragraph', () => {
+    const html = renderBlocks(
+      [
+        {
+          id: 'd',
+          type: 'mermaid',
+          props: { code: 'flowchart TD\n  A --> B', prompt: 'a to b' },
+        },
+      ] as unknown as Blocks,
+      links
+    );
+    expect(html).toBe(
+      '<pre id="d"><code class="language-mermaid">flowchart TD\n  A --&gt; B</code></pre>'
+    );
+  });
+
   it('resolves store assets and marks missing media', () => {
     const html = renderBlocks(
       [

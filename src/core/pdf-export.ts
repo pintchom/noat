@@ -175,6 +175,7 @@ function dataUrlImage(url: string): Buffer | undefined {
 }
 
 type BlockProps = {
+  code?: string;
   level?: number;
   checked?: boolean;
   textAlignment?: 'left' | 'center' | 'right' | 'justify';
@@ -588,6 +589,14 @@ export async function noteToPdf(
         case 'codeBlock': {
           doc.moveDown(0.3);
           renderCodeBlock(plainTextOf(runs), x, width);
+          doc.moveDown(0.3);
+          break;
+        }
+        // A diagram's picture is drawn by Mermaid in the webview; the PDF has
+        // no browser, so it carries the script instead of a blank space.
+        case 'mermaid': {
+          doc.moveDown(0.3);
+          renderCodeBlock(props.code ?? '', x, width);
           doc.moveDown(0.3);
           break;
         }

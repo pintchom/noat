@@ -311,6 +311,33 @@ describe('superscript and subscript', () => {
   });
 });
 
+describe('diagram blocks', () => {
+  const diagram: Block = {
+    id: 'd1',
+    type: 'mermaid',
+    props: { code: 'flowchart TD\n  A --> B', prompt: 'a to b' },
+  };
+
+  it('renders a diagram as a fenced mermaid block', async () => {
+    const markdown = await blocksToMarkdown([diagram]);
+    expect(markdown).toContain('```mermaid');
+    expect(markdown).toContain('A --> B');
+  });
+
+  it('reads a mermaid fence back as a diagram block', async () => {
+    const blocks = await markdownToBlocks('```mermaid\nflowchart TD\n  A --> B\n```');
+    expect(blocks[0]?.type).toBe('mermaid');
+    expect((blocks[0] as { props?: { code?: string } }).props?.code).toBe(
+      'flowchart TD\n  A --> B'
+    );
+  });
+
+  it('leaves other code blocks alone', async () => {
+    const blocks = await markdownToBlocks('```ts\nconst a = 1;\n```');
+    expect(blocks[0]?.type).toBe('codeBlock');
+  });
+});
+
 describe('math', () => {
   const formulas = (blocks: Block[]) =>
     allInline(blocks)

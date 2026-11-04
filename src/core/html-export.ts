@@ -140,6 +140,7 @@ type BlockProps = Record<string, unknown> & {
   caption?: string;
   previewWidth?: number;
   latex?: string;
+  code?: string;
   start?: number;
 };
 
@@ -262,6 +263,13 @@ function renderBlock(block: Block, links: HtmlLinkResolver): string {
     }
     case 'equation':
       return `<div${blockAttrs(block, 'equation')}>${renderMath(props.latex ?? '', true)}</div>${nested}`;
+    // Drawing this needs Mermaid in the page; publish the script instead, as
+    // PDF export does. shortcut: no picture on the web page, load Mermaid from
+    // a CDN (as the KaTeX stylesheet already is) if published diagrams matter.
+    case 'mermaid':
+      return `<pre${blockAttrs(block)}><code class="language-mermaid">${escapeHtml(
+        props.code ?? ''
+      )}</code></pre>${nested}`;
     case 'table':
       return renderTable(content, links);
     case 'image':

@@ -38,6 +38,18 @@ Notes are either **global** (visible everywhere) or **scoped to a repository** (
 
 Results merge via reciprocal rank fusion. Everything runs locally — no API key, nothing leaves your machine.
 
+### Diagrams from a description
+
+Type `/diagram a sequence of the login flow` (or pick **Diagram** from the `/` or `+` menu) and a local model writes the Mermaid script for it, using the note itself as context. The script — not a picture — is what gets stored in the note, so diagrams stay diffable in git, re-render in your IDE's light or dark theme, and can be edited by hand or regenerated from the description. Drag a diagram's bottom-right corner to resize it in the note (the size is stored with it), or click it to open it full size, where you can zoom in (the toolbar buttons or ctrl+scroll) and scroll around a big one.
+
+Generation talks to any OpenAI-compatible endpoint; it defaults to `http://127.0.0.1:8000/v1`, so with a local server ([oMLX](https://omlx.app), LM Studio, Ollama, llama.cpp) nothing leaves your machine and nothing costs tokens:
+
+| Setting | Default | |
+| --- | --- | --- |
+| `noat.diagram.baseUrl` | `http://127.0.0.1:8000/v1` | OpenAI-compatible chat endpoint |
+| `noat.diagram.model` | *(empty)* | Empty means the first model the server lists |
+| `noat.diagram.apiKey` | *(empty)* | Bearer token, if the server wants one |
+
 ### Share notes as PDF
 
 Run `NOAT: Export Note as PDF` from the command palette (or right-click a note in the sidebar, or use the PDF icon on an open note tab) to save any note as a polished PDF — headings, lists, checklists, tables, code blocks, quotes, links, and typeset math included. Everything renders locally; nothing leaves your machine.

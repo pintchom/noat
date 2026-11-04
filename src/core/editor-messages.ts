@@ -22,7 +22,9 @@ export type HostToWebviewMessage =
   | { type: 'fileResults'; requestId: number; files: string[] }
   | { type: 'noteResults'; requestId: number; notes: NoteLinkResult[] }
   /** url is the store-relative asset URL ("assets/<file>"); absent on failure. */
-  | { type: 'assetSaved'; requestId: number; url?: string };
+  | { type: 'assetSaved'; requestId: number; url?: string }
+  /** Mermaid source for a /diagram request; `error` is set instead on failure. */
+  | { type: 'diagramGenerated'; requestId: number; code?: string; error?: string };
 
 export type WebviewToHostMessage =
   | { type: 'ready' }
@@ -31,4 +33,14 @@ export type WebviewToHostMessage =
   | { type: 'openFile'; path: string }
   | { type: 'searchNotes'; requestId: number; query: string }
   | { type: 'openNote'; notePath: string }
-  | { type: 'saveAsset'; requestId: number; name: string; dataBase64: string };
+  | { type: 'saveAsset'; requestId: number; name: string; dataBase64: string }
+  /**
+   * Generate a Mermaid diagram from `prompt`; the host supplies the note as
+   * context. `repair` asks the model to fix a script Mermaid just rejected.
+   */
+  | {
+      type: 'generateDiagram';
+      requestId: number;
+      prompt: string;
+      repair?: { code: string; error: string };
+    };

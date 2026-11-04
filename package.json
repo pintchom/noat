@@ -206,6 +206,24 @@
           "scope": "application",
           "markdownDescription": "Re-publish a published note automatically shortly after it's saved, so its web page stays current.",
           "order": 5
+        },
+        "noat.diagram.baseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8000/v1",
+          "markdownDescription": "OpenAI-compatible chat endpoint that writes `/diagram` diagrams. Defaults to a local server (oMLX, LM Studio, Ollama, llama.cpp), so notes never leave the machine and generation costs nothing.",
+          "order": 6
+        },
+        "noat.diagram.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model id for `/diagram`. Empty means the first model the server lists.",
+          "order": 7
+        },
+        "noat.diagram.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Bearer token for the diagram endpoint, if it requires one (oMLX does: copy `auth.api_key` from `~/.omlx/settings.json`).",
+          "order": 8
         }
       }
     },
@@ -363,6 +381,7 @@
     "@vscode/vsce": "^3.2.0",
     "esbuild": "^0.24.0",
     "katex": "^0.18.5",
+    "mermaid": "^11.17.2",
     "prosemirror-highlight": "^0.15.2",
     "prosemirror-state": "^1.4.4",
     "react": "^18.3.1",

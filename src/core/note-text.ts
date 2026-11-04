@@ -26,6 +26,12 @@ function inlineText(content: unknown): string {
 
 function blockText(block: Block): string[] {
   const parts: string[] = [];
+  // Diagram blocks keep their Mermaid script (and the description it came
+  // from) in props, not content — both are the only searchable text they have.
+  if (block.type === 'mermaid') {
+    const props = (block as { props?: { code?: string; prompt?: string } }).props;
+    parts.push([props?.prompt, props?.code].filter(Boolean).join('\n'));
+  }
   const content = (block as { content?: unknown }).content;
   // Equation blocks hold no content -- their LaTeX lives in props, and without
   // this the formula would be invisible to search and to snippets.
