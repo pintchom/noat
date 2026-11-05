@@ -350,6 +350,67 @@ body {
   resize: vertical;
 }
 
+/* Hover preview card for @-mention file chips. */
+.noat-file-link-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.noat-file-link-preview {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: block;
+  max-width: 480px;
+  min-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.3));
+  border-radius: 6px;
+  background: var(--vscode-editorHoverWidget-background, var(--vscode-editor-background));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  white-space: normal;
+  cursor: default;
+}
+
+/* Bridges the gap above the card so moving the mouse onto it (to scroll the
+   preview) doesn't leave the chip's hover area and close it. */
+.noat-file-link-preview::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 5px;
+}
+
+.noat-file-link-preview-path {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.75em;
+  opacity: 0.7;
+  word-break: break-all;
+}
+
+.noat-file-link-preview-empty {
+  display: block;
+  font-size: 0.8em;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.noat-file-link-preview-body {
+  display: block;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre;
+  font-family: var(--vscode-editor-font-family, ui-monospace), ui-monospace, "SF Mono",
+    "Cascadia Code", "JetBrains Mono", "Fira Code", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  font-size: 0.8em;
+  line-height: 1.5;
+  color: var(--vscode-editor-foreground);
+}
+
 /* Let the editor sit on the IDE background instead of BlockNote's own. */
 .bn-editor {
   background: transparent !important;

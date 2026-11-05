@@ -9,6 +9,7 @@ import type {
   NoteLinkResult,
   WebviewToHostMessage,
 } from '../core/editor-messages';
+import { filePreviewFromBytes } from '../core/file-preview';
 import { parseNote } from '../core/note';
 import { rankNoteLinks } from '../core/note-link-search';
 import { type NoteListing, listAllNotes, resolveNotePath } from '../core/note-listing';
@@ -40,6 +41,35 @@ async function openWorkspaceFile(relativePath: string): Promise<void> {
     });
   } catch {
     vscode.window.showWarningMessage(`NOAT: file not found in this workspace: ${relativePath}`);
+  }
+}
+
+const PREVIEW_MAX_BYTES = 64 * 1024;
+
+/**
+ * Read the leading bytes of a workspace file for the @-mention hover preview.
+ * Reads through a file handle because `workspace.fs.readFile` loads the whole
+ * file, which stalls the host on a large one. Workspaces that aren't on disk
+ * (virtual file systems) get no preview.
+ */
+async function readFilePreview(relativePath: string): Promise<string | undefined> {
+  const uri = resolveWorkspacePath(relativePath);
+  if (!uri) return undefined;
+  try {
+    const handle = await fs.open(uri.fsPath, 'r');
+    try {
+      const { buffer, bytesRead } = await handle.read(
+        Buffer.alloc(PREVIEW_MAX_BYTES),
+        0,
+        PREVIEW_MAX_BYTES,
+        0
+      );
+      return filePreviewFromBytes(buffer.subarray(0, bytesRead));
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    return undefined;
   }
 }
 
@@ -236,6 +266,11 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
           break;
         case 'openFile':
           void openWorkspaceFile(message.path);
+          break;
+        case 'previewFile':
+          void readFilePreview(message.path).then((preview) => {
+            post({ type: 'filePreview', requestId: message.requestId, preview });
+          });
           break;
         case 'searchNotes':
           void searchLinkableNotes(noatHome, message.query).then((notes) => {
