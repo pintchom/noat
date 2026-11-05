@@ -373,6 +373,17 @@ body {
   cursor: default;
 }
 
+/* Bridges the gap above the card so moving the mouse onto it (to scroll the
+   preview) doesn't leave the chip's hover area and close it. */
+.noat-file-link-preview::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 5px;
+}
+
 .noat-file-link-preview-path {
   display: block;
   margin-bottom: 6px;

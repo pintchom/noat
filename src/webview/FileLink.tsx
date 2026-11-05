@@ -41,7 +41,7 @@ export const FileLink = createReactInlineContentSpec(
           onMouseEnter={onEnter}
           onMouseLeave={() => setHovering(false)}
         >
-          <button type="button" className="noat-file-link" title={filePath} onClick={open}>
+          <button type="button" className="noat-file-link" aria-label={filePath} onClick={open}>
             <span className="noat-file-link-icon">{FILE_ICON}</span>
             {fileName}
           </button>

@@ -46,13 +46,28 @@ async function openWorkspaceFile(relativePath: string): Promise<void> {
 
 const PREVIEW_MAX_BYTES = 64 * 1024;
 
-/** Read the leading bytes of a workspace file for the @-mention hover preview. */
+/**
+ * Read the leading bytes of a workspace file for the @-mention hover preview.
+ * Reads through a file handle because `workspace.fs.readFile` loads the whole
+ * file, which stalls the host on a large one. Workspaces that aren't on disk
+ * (virtual file systems) get no preview.
+ */
 async function readFilePreview(relativePath: string): Promise<string | undefined> {
   const uri = resolveWorkspacePath(relativePath);
   if (!uri) return undefined;
   try {
-    const bytes = await vscode.workspace.fs.readFile(uri);
-    return filePreviewFromBytes(bytes.subarray(0, PREVIEW_MAX_BYTES));
+    const handle = await fs.open(uri.fsPath, 'r');
+    try {
+      const { buffer, bytesRead } = await handle.read(
+        Buffer.alloc(PREVIEW_MAX_BYTES),
+        0,
+        PREVIEW_MAX_BYTES,
+        0
+      );
+      return filePreviewFromBytes(buffer.subarray(0, bytesRead));
+    } finally {
+      await handle.close();
+    }
   } catch {
     return undefined;
   }
