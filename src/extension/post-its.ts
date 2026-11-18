@@ -27,6 +27,7 @@ const CONTROLLER_ID = 'noat.postIts';
 const ACTIVE_NOTE_KEY = 'noat.activeNoteId';
 const HAS_ACTIVE_NOTE_CONTEXT = 'noat.hasActiveNote';
 const RELOAD_DEBOUNCE_MS = 300;
+const HOVER_COMMANDS = ['noat.openNote', 'noat.revealPostIt', 'noat.deletePostIt'] as const;
 const SUBMIT_KEY = process.platform === 'darwin' ? '⌘Enter' : 'Ctrl+Enter';
 
 interface NoteInfo {
@@ -103,6 +104,7 @@ export class PostItsController implements vscode.Disposable {
   private readonly unsaved = new Set<string>();
   /** What this window last wrote (or read) per note, to tell external writes apart. */
   private readonly lastWritten = new Map<string, string>();
+  private readonly writes = new Map<string, Promise<void>>();
 
   private readonly repos = new Map<string, Promise<WorkspaceRepo | undefined>>();
   private readonly repoRoots = new Map<string, string>();
@@ -249,6 +251,7 @@ export class PostItsController implements vscode.Disposable {
     register('noat.setActiveNote', () => this.chooseActiveNote());
     register('noat.clearActiveNote', () => this.setActiveNote(undefined));
     register('noat.revealPostIt', (id: string) => this.reveal(id));
+    register('noat.deletePostIt', (id: string) => this.confirmDelete(id));
     register('noat.postIt.save', (reply: vscode.CommentReply) => this.saveDraft(reply));
     register('noat.postIt.cancel', (reply: vscode.CommentReply) => reply.thread.dispose());
     register('noat.postIt.edit', (comment: PostItComment) => this.setEditing(comment, true));
@@ -577,19 +580,27 @@ export class PostItsController implements vscode.Disposable {
     );
   }
 
-  private hoverFor(postIt: PostIt): vscode.MarkdownString {
+  /**
+   * The post-it's own text renders as untrusted markdown in a section of its
+   * own, so nothing in it can reach the command links, which live in a
+   * separate trusted section.
+   */
+  private hoverFor(postIt: PostIt): vscode.MarkdownString[] {
+    const content = new vscode.MarkdownString();
+    content.appendMarkdown('**');
+    content.appendText(this.noteLabel(postIt.noteId));
+    content.appendMarkdown('**\n\n');
+    content.appendMarkdown(postIt.text);
+
     const note = this.notes.get(postIt.noteId);
-    const hover = new vscode.MarkdownString();
-    hover.isTrusted = { enabledCommands: ['noat.openNote', 'noat.revealPostIt'] };
-    hover.appendMarkdown('**');
-    hover.appendText(this.noteLabel(postIt.noteId));
-    hover.appendMarkdown('**\n\n');
-    hover.appendMarkdown(postIt.text);
-    hover.appendMarkdown(`\n\n[Expand](${commandLink('noat.revealPostIt', [postIt.id])})`);
+    const actions = new vscode.MarkdownString();
+    actions.isTrusted = { enabledCommands: [...HOVER_COMMANDS] };
+    actions.appendMarkdown(`[Expand](${commandLink('noat.revealPostIt', [postIt.id])})`);
     if (note) {
-      hover.appendMarkdown(` · [Open note](${commandLink('noat.openNote', [note.absPath])})`);
+      actions.appendMarkdown(` · [Open note](${commandLink('noat.openNote', [note.absPath])})`);
     }
-    return hover;
+    actions.appendMarkdown(` · [Delete](${commandLink('noat.deletePostIt', [postIt.id])})`);
+    return [content, actions];
   }
 
   /** Clicking or moving the cursor off a post-it folds it back into its gutter icon. */
@@ -665,16 +676,20 @@ export class PostItsController implements vscode.Disposable {
     const anchor = await this.anchorOf(document.uri);
     if (!anchor) return;
     const notes = new Set<string>();
+    // Opening a file can reveal a repo first seen just now (a nested repo or
+    // submodule), whose post-its had no file to put their threads on yet.
+    let missingThread = false;
     let text: string | undefined;
     for (const postIt of this.postIts.values()) {
       if (!sameAnchor(postIt, anchor)) continue;
+      if (!this.threads.has(postIt.id)) missingThread = true;
       text ??= document.getText();
       const next = reanchorRange(text, postIt.range, postIt.snippet);
       if (sameRange(next, postIt.range)) continue;
       postIt.range = next;
       notes.add(postIt.noteId);
     }
-    if (notes.size === 0) return;
+    if (notes.size === 0 && !missingThread) return;
     this.syncThreads();
     for (const noteId of notes) {
       if (document.isDirty) this.unsaved.add(noteId);
@@ -682,7 +697,22 @@ export class PostItsController implements vscode.Disposable {
     }
   }
 
-  private async persist(noteId: string): Promise<void> {
+  /**
+   * Write a note's post-its. Writes for one note run one at a time, each
+   * snapshotting the post-its when it starts, so a slow earlier write can't
+   * land after a later one and bring back stale contents.
+   */
+  private persist(noteId: string): Promise<void> {
+    const previous = this.writes.get(noteId) ?? Promise.resolve();
+    const write = previous.then(() => this.write(noteId));
+    this.writes.set(noteId, write);
+    void write.then(() => {
+      if (this.writes.get(noteId) === write) this.writes.delete(noteId);
+    });
+    return write;
+  }
+
+  private async write(noteId: string): Promise<void> {
     const postIts = [...this.postIts.values()].filter((postIt) => postIt.noteId === noteId);
     try {
       this.lastWritten.set(noteId, await writeNotePostIts(this.noatHome, noteId, postIts));

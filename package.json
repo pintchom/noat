@@ -166,6 +166,10 @@
         "title": "NOAT: Show Post-it"
       },
       {
+        "command": "noat.deletePostIt",
+        "title": "NOAT: Delete Post-it"
+      },
+      {
         "command": "noat.postIt.save",
         "title": "Save Post-it"
       },
@@ -471,6 +475,10 @@
         },
         {
           "command": "noat.revealPostIt",
+          "when": "false"
+        },
+        {
+          "command": "noat.deletePostIt",
           "when": "false"
         },
         {
