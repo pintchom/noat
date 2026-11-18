@@ -103,6 +103,7 @@ export class PostItsController implements vscode.Disposable {
   private readonly unsaved = new Set<string>();
   /** What this window last wrote (or read) per note, to tell external writes apart. */
   private readonly lastWritten = new Map<string, string>();
+  private readonly writes = new Map<string, Promise<void>>();
 
   private readonly repos = new Map<string, Promise<WorkspaceRepo | undefined>>();
   private readonly repoRoots = new Map<string, string>();
@@ -682,7 +683,22 @@ export class PostItsController implements vscode.Disposable {
     }
   }
 
-  private async persist(noteId: string): Promise<void> {
+  /**
+   * Write a note's post-its. Writes for one note run one at a time, each
+   * snapshotting the post-its when it starts, so a slow earlier write can't
+   * land after a later one and bring back stale contents.
+   */
+  private persist(noteId: string): Promise<void> {
+    const previous = this.writes.get(noteId) ?? Promise.resolve();
+    const write = previous.then(() => this.write(noteId));
+    this.writes.set(noteId, write);
+    void write.then(() => {
+      if (this.writes.get(noteId) === write) this.writes.delete(noteId);
+    });
+    return write;
+  }
+
+  private async write(noteId: string): Promise<void> {
     const postIts = [...this.postIts.values()].filter((postIt) => postIt.noteId === noteId);
     try {
       this.lastWritten.set(noteId, await writeNotePostIts(this.noatHome, noteId, postIts));
