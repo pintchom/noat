@@ -239,18 +239,23 @@ export function trackRange(
   snippet: string,
   textAfter: () => string
 ): PostItRange {
-  let swallowed = false;
   let current = range;
+  // Where the range sat just before the edit that swallowed it: shifting
+  // would collapse it to the edit's start, and the search for the snippet
+  // must start from the old spot to pick the right one of duplicates.
+  let beforeSwallow: PostItRange | undefined;
   for (const change of changes) {
-    if (
+    if (beforeSwallow) {
+      beforeSwallow = shiftRange(beforeSwallow, change);
+    } else if (
       comparePositions(change.range.start, current.start) <= 0 &&
       comparePositions(change.range.end, current.start) > 0
     ) {
-      swallowed = true;
+      beforeSwallow = current;
     }
     current = shiftRange(current, change);
   }
-  return swallowed ? reanchorRange(textAfter(), current, snippet) : current;
+  return beforeSwallow ? reanchorRange(textAfter(), beforeSwallow, snippet) : current;
 }
 
 /** A post-it's snippet trimmed for display: dedented, at most `maxLines` lines. */

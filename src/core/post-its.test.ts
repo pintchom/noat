@@ -113,6 +113,18 @@ describe('trackRange', () => {
     );
   });
 
+  it('re-finds a duplicated snippet nearest its old spot, not the first one', () => {
+    // A reload replacing lines 0-5 wholesale, adding a header line on top.
+    const before = ['retry();', 'a', 'b', 'c', 'd', 'retry();', 'e'];
+    const after = ['// header', ...before].join('\n');
+    const changes = [
+      { range: range(0, 0, 6, 0), text: `${['// header', ...before.slice(0, 6)].join('\n')}\n` },
+    ];
+    expect(trackRange(range(5, 0, 5, 8), changes, 'retry();', () => after)).toEqual(
+      range(6, 0, 6, 8)
+    );
+  });
+
   it('just shifts for ordinary typing elsewhere', () => {
     let read = false;
     const textAfter = () => {
