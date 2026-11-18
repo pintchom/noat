@@ -15,6 +15,7 @@ import { NOTE_ICON, noteIconForStorage, resolveNoteIcon } from '../core/display-
 import { type NoteFile, serializeNote } from '../core/note';
 import { MathToolbarButton, applySelectionMath } from './MathToolbarButton';
 import { NoteIconPicker } from './NoteIconPicker';
+import { PostItsPanel } from './PostItsPanel';
 import { resolveAssetUrl, saveAsset } from './asset-client';
 import { caretTargetAfterRewrite, flattenBlockIds } from './caret-fallback';
 import { searchWorkspaceFiles } from './file-search-client';
@@ -456,6 +457,7 @@ export function NoteEditor({
           }}
         />
       </div>
+      <PostItsPanel />
       <div
         onKeyDownCapture={onEditorKeyDown}
         onMouseDownCapture={onPointMouseDown}

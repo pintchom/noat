@@ -17,6 +17,7 @@ import { blocksToPlainText } from '../core/note-text';
 import { getAssetsDir, getNoatHome } from '../core/paths';
 import { repoKeyToLabel } from '../core/repo-key';
 import { WebviewEchoes } from '../core/webview-echoes';
+import type { PostItsController } from './post-its';
 import { WorkspaceFileSearch, pickFileViewColumn, resolveWorkspacePath } from './workspace-files';
 
 const AUTO_SAVE_MS = 400;
@@ -171,10 +172,10 @@ async function openLinkedNote(noatHome: string, notePath: string): Promise<void>
 export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
   static readonly viewType = 'noat.noteEditor';
 
-  static register(context: vscode.ExtensionContext): vscode.Disposable {
+  static register(context: vscode.ExtensionContext, postIts: PostItsController): vscode.Disposable {
     return vscode.window.registerCustomEditorProvider(
       NoteEditorProvider.viewType,
-      new NoteEditorProvider(context),
+      new NoteEditorProvider(context, postIts),
       {
         webviewOptions: { retainContextWhenHidden: true },
         supportsMultipleEditorsPerDocument: false,
@@ -182,7 +183,10 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
     );
   }
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly postIts: PostItsController
+  ) {}
 
   async resolveCustomTextEditor(
     document: vscode.TextDocument,
@@ -246,6 +250,18 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
       post({ type: 'update', text });
     });
 
+    const postPostIts = (): void => {
+      const noteId = (() => {
+        try {
+          return parseNote(document.getText()).id;
+        } catch {
+          return undefined;
+        }
+      })();
+      post({ type: 'postIts', postIts: noteId ? this.postIts.summariesFor(noteId) : [] });
+    };
+    const postItsSubscription = this.postIts.onDidChange(postPostIts);
+
     const fileSearch = new WorkspaceFileSearch();
     // Base URI the webview prepends to asset file names; images can only load
     // through asWebviewUri (the CSP allows cspSource, not file:).
@@ -255,6 +271,13 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
       switch (message.type) {
         case 'ready':
           post({ type: 'init', text: document.getText(), assetsBaseUri });
+          postPostIts();
+          break;
+        case 'openPostIt':
+          void this.postIts.reveal(message.id);
+          break;
+        case 'deletePostIt':
+          void this.postIts.confirmDelete(message.id);
           break;
         case 'edit':
           void applyWebviewEdit(message.text);
@@ -301,6 +324,7 @@ export class NoteEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.onDidDispose(() => {
       changeSubscription.dispose();
+      postItsSubscription.dispose();
       if (saveTimer) clearTimeout(saveTimer);
     });
   }
