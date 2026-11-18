@@ -21,6 +21,8 @@ export interface StoreEntry {
   absPath: string;
   scope: NoteScope;
   icon?: string;
+  /** Note id (notes only; absent when the file can't be parsed). */
+  id?: string;
 }
 
 export function scopeDir(noatHome: string, scope: NoteScope): string {
@@ -73,19 +75,14 @@ export async function listEntries(dirAbsPath: string, scope: NoteScope): Promise
           return { kind: 'folder', name: dirent.name, absPath, scope };
         }
         if (dirent.isFile() && isNoteFile(dirent.name)) {
-          const icon = await (async () => {
-            try {
-              return (await readNote(absPath)).icon;
-            } catch {
-              return undefined;
-            }
-          })();
+          const note = await readNote(absPath).catch(() => undefined);
           return {
             kind: 'note',
             name: noteNameFromFile(dirent.name),
             absPath,
             scope,
-            ...(icon && { icon }),
+            ...(note?.icon && { icon: note.icon }),
+            ...(note && { id: note.id }),
           };
         }
         return undefined;
