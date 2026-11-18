@@ -666,16 +666,20 @@ export class PostItsController implements vscode.Disposable {
     const anchor = await this.anchorOf(document.uri);
     if (!anchor) return;
     const notes = new Set<string>();
+    // Opening a file can reveal a repo first seen just now (a nested repo or
+    // submodule), whose post-its had no file to put their threads on yet.
+    let missingThread = false;
     let text: string | undefined;
     for (const postIt of this.postIts.values()) {
       if (!sameAnchor(postIt, anchor)) continue;
+      if (!this.threads.has(postIt.id)) missingThread = true;
       text ??= document.getText();
       const next = reanchorRange(text, postIt.range, postIt.snippet);
       if (sameRange(next, postIt.range)) continue;
       postIt.range = next;
       notes.add(postIt.noteId);
     }
-    if (notes.size === 0) return;
+    if (notes.size === 0 && !missingThread) return;
     this.syncThreads();
     for (const noteId of notes) {
       if (document.isDirty) this.unsaved.add(noteId);
