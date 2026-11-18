@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Post-its in code: select code and hit `Cmd+Alt+N` (`Ctrl+Alt+N`, rebindable) to leave a note inline. Click away and it folds into a yellow sticky-note icon in the gutter with the code highlighted. Each post-it belongs to a note, which lists its post-its at the top with links back to the code. Set an active note from the status bar or the sidebar to send new post-its there and hide every other note's. Post-its follow the code through edits, pulls, and branch switches.
 - `/diagram <description>` (also in the `/` and `+` menus): a local model writes a Mermaid diagram from your description plus the note's own text, and the note stores the script rather than an image — so it stays diffable, follows the IDE theme, and can be edited or regenerated in place. Configure the endpoint with `noat.diagram.baseUrl` (defaults to a local OpenAI-compatible server on port 8000); diagrams export to markdown as ```` ```mermaid ```` fences for MCP agents. Drag a diagram's bottom-right corner to resize it in place, up to the note's width — the size is stored in the note. Clicking one opens it full size, with zoom (toolbar or ctrl+scroll) and scrolling for anything too big to read inline. Published web pages draw diagrams too, loading Mermaid from a CDN only for notes that have one.
 
 ## 0.1.11 — 2026-11-03

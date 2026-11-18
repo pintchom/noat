@@ -25,7 +25,13 @@ Type `@` in a note to fuzzy-search tracked and non-ignored files in your workspa
 
 Type `/point`, then click any line in the note. A chip linking to that line lands where you typed `/point`; clicking it scrolls to the line and briefly highlights it. The chip shows the line's current text, and turns gray and struck through if that line is deleted. `Esc` cancels.
 
-### Repo-scoped or global
+### Post-its in your code
+
+Tracing through code? Select some lines and hit `Cmd+Alt+N` (`Ctrl+Alt+N`), or right-click → **NOAT: Add Post-it**, and a post-it opens inline right there. Write what the code does, `Cmd+Enter` to save, then click away: it folds into a yellow sticky-note icon in the gutter (where breakpoints go) with the code highlighted. Hover the icon to read it, click the gutter to unfold it, and edit or delete it from its title bar.
+
+Every post-it belongs to a note. The **active note** — shown in the status bar, marked 📌 in the sidebar — is where new post-its go, and while one is active only its post-its show in code, so the notes from one investigation don't bleed into another. Pick it from the status bar, `NOAT: Choose Active Note…`, or right-click a note → **Set as Active Note**; the pin icon in the sidebar goes back to showing every note's post-its. Each note lists its post-its at the top, with the code they point at; click one to jump there.
+
+Post-its are pinned by repo-relative path and the highlighted text, so they follow the code as you edit it, and re-find it after a pull or branch switch moves it.
 
 Notes are either **global** (visible everywhere) or **scoped to a repository** (keyed by its `origin` remote, so clones on other machines see the same notes). Organize freely with folders — drag notes into folders in the sidebar, or move notes between scopes from the context menu. Use the layers icon in the sidebar to show every repository's notes at once, not just the current workspace.
 
@@ -124,6 +130,7 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 | `Cmd+Shift+S` (`Ctrl+Shift+S`) | Search notes (hybrid) |
 | `Cmd+Alt+P` (`Ctrl+Alt+P`) | Search notes (alternate binding) |
 | `Cmd+P` while the NOAT sidebar is focused | Search notes |
+| `Cmd+Alt+N` (`Ctrl+Alt+N`) in a code file | Leave a post-it on the selection (or the current line) |
 | `Cmd+Shift+C` (`Ctrl+Shift+C`) inside a note | Format selection as inline code (Slack-style) |
 | `Cmd+Shift+.` (`Ctrl+Shift+.`) inside a note | Superscript the selection |
 | `Cmd+Shift+,` (`Ctrl+Shift+,`) inside a note | Subscript the selection |
@@ -132,7 +139,7 @@ Reload your editor window. You'll find the NOAT book icon in the activity bar.
 
 Use the keyboard icon in the NOAT sidebar or run `NOAT: Edit Keyboard Shortcuts` to open the native Keyboard Shortcuts editor filtered to NOAT commands. Changes are saved in your editor's user keybindings and work with Settings Sync.
 
-Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Export Note as PDF`, `NOAT: Publish Note to Web`, `NOAT: Unpublish Note`, `NOAT: Sign Out of Netlify`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`.
+Command palette: `NOAT: New Note`, `NOAT: New Folder`, `NOAT: Search Notes`, `NOAT: Export Note as PDF`, `NOAT: Publish Note to Web`, `NOAT: Unpublish Note`, `NOAT: Sign Out of Netlify`, `NOAT: Edit Keyboard Shortcuts`, `NOAT: Rebuild Search Index`, `NOAT: Open Notes Store in Terminal`, `NOAT: Refresh Notes`, `NOAT: Show All Repositories`, `NOAT: Show Current Repository Only`, `NOAT: Add Post-it`, `NOAT: Choose Active Note…`, `NOAT: Show Post-its From All Notes`.
 
 ## MCP setup outside Cursor
 
@@ -174,6 +181,7 @@ Everything lives in `~/.noat` (override with `NOAT_HOME`):
   notes/
     global/              # universal notes, nested folders allowed
     repos/<repo-key>/    # notes scoped to one repository
+  postits/<note-id>.json # post-its left in code, one file per note
 ```
 
 Notes are `.noat.json` files: a small envelope (`id`, `title`, timestamps) around a [BlockNote](https://www.blocknotejs.org/) block array. Plain files — grep them, script against them, take them with you.
