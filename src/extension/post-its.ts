@@ -42,14 +42,6 @@ interface Anchor {
   file: string;
 }
 
-/** A post-it being written: its thread exists, the post-it doesn't yet. */
-interface Draft {
-  noteId: string;
-  anchor: Anchor;
-  range: PostItRange;
-  snippet: string;
-}
-
 function toRange(range: PostItRange): vscode.Range {
   return new vscode.Range(
     range.start.line,
@@ -107,8 +99,6 @@ export class PostItsController implements vscode.Disposable {
 
   private readonly comments: vscode.CommentController;
   private readonly threads = new Map<string, vscode.CommentThread>();
-  private readonly drafts = new Map<vscode.CommentThread, Draft>();
-
   /** Notes whose post-its moved with unsaved code edits and still need writing. */
   private readonly unsaved = new Set<string>();
   /** What this window last wrote (or read) per note, to tell external writes apart. */
@@ -141,9 +131,13 @@ export class PostItsController implements vscode.Disposable {
   ) {
     this.iconUri = vscode.Uri.joinPath(context.extensionUri, 'media', 'post-it.svg');
     this.comments = vscode.comments.createCommentController(CONTROLLER_ID, 'NOAT Post-its');
-    this.comments.options = {
-      prompt: 'Leave a post-it…',
-      placeHolder: `What is this code doing? ${SUBMIT_KEY} to save`,
+    // Any line of a file on disk can take a post-it, which also puts a "+" in
+    // the gutter on hover, next to where breakpoints go.
+    this.comments.commentingRangeProvider = {
+      provideCommentingRanges: (document) =>
+        document.uri.scheme === 'file'
+          ? [new vscode.Range(0, 0, Math.max(document.lineCount - 1, 0), 0)]
+          : [],
     };
     this.highlight = vscode.window.createTextEditorDecorationType({
       backgroundColor: new vscode.ThemeColor('noat.postItHighlightBackground'),
@@ -256,7 +250,7 @@ export class PostItsController implements vscode.Disposable {
     register('noat.clearActiveNote', () => this.setActiveNote(undefined));
     register('noat.revealPostIt', (id: string) => this.reveal(id));
     register('noat.postIt.save', (reply: vscode.CommentReply) => this.saveDraft(reply));
-    register('noat.postIt.cancel', (reply: vscode.CommentReply) => this.cancelDraft(reply));
+    register('noat.postIt.cancel', (reply: vscode.CommentReply) => reply.thread.dispose());
     register('noat.postIt.edit', (comment: PostItComment) => this.setEditing(comment, true));
     register('noat.postIt.saveEdit', (comment: PostItComment) => this.saveEdit(comment));
     register('noat.postIt.cancelEdit', (comment: PostItComment) => {
@@ -320,21 +314,40 @@ export class PostItsController implements vscode.Disposable {
     );
   }
 
+  /**
+   * Open a new post-it on the selection. The editor creates the draft itself
+   * (the gutter "+" does the same): only then does its input get focus, and
+   * a draft created through the API would leave focus in the code, where
+   * typing overwrites the selection.
+   */
   private async addPostIt(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
       vscode.window.showInformationMessage('NOAT: open a file to leave a post-it in.');
       return;
     }
-    const { document, selection } = editor;
-    const range = selection.isEmpty
-      ? document.lineAt(selection.active.line).range
-      : new vscode.Range(selection.start, selection.end);
-    const anchor = await this.anchorOf(document.uri);
-    if (!anchor) {
+    if (!(await this.anchorOf(editor.document.uri))) {
       vscode.window.showWarningMessage('NOAT: post-its can only be left in files on disk.');
       return;
     }
+    if (!this.activeNote) {
+      const note = await this.pickNote(
+        'Which note is this post-it for? It becomes the active note.',
+        false
+      );
+      if (!note || note === 'all') return;
+      await this.setActiveNote(note.id);
+      await vscode.window.showTextDocument(editor.document, editor.viewColumn);
+    }
+    await vscode.commands.executeCommand('workbench.action.addComment');
+  }
+
+  private async saveDraft(reply: vscode.CommentReply): Promise<void> {
+    const { thread } = reply;
+    const text = reply.text.trim();
+    if (!text || this.postItIdOf(thread)) return;
+    const anchor = await this.anchorOf(thread.uri);
+    if (!anchor) return;
 
     let note = this.activeNote;
     if (!note) {
@@ -347,34 +360,18 @@ export class PostItsController implements vscode.Disposable {
       await this.setActiveNote(note.id);
     }
 
-    const thread = this.comments.createCommentThread(document.uri, range, []);
-    thread.canReply = true;
-    thread.contextValue = 'draft';
-    thread.label = `New post-it · ${this.noteLabel(note.id)}`;
-    thread.collapsibleState = vscode.CommentThreadCollapsibleState.Expanded;
-    this.drafts.set(thread, {
-      noteId: note.id,
-      anchor,
-      range: fromRange(range),
-      snippet: document.getText(range),
-    });
-  }
-
-  private async saveDraft(reply: vscode.CommentReply): Promise<void> {
-    const { thread } = reply;
-    const draft = this.drafts.get(thread);
-    const text = reply.text.trim();
-    if (!draft || !text) return;
-    this.drafts.delete(thread);
-
+    const document = await vscode.workspace.openTextDocument(thread.uri);
+    const start = thread.range?.start.line ?? 0;
+    const range =
+      !thread.range || thread.range.isEmpty ? document.lineAt(start).range : thread.range;
     const now = new Date().toISOString();
     const postIt: PostIt = {
       id: randomUUID(),
-      noteId: draft.noteId,
-      ...(draft.anchor.repoKey && { repoKey: draft.anchor.repoKey }),
-      file: draft.anchor.file,
-      range: draft.range,
-      snippet: draft.snippet,
+      noteId: note.id,
+      ...(anchor.repoKey && { repoKey: anchor.repoKey }),
+      file: anchor.file,
+      range: fromRange(range),
+      snippet: document.getText(range),
       text,
       createdAt: now,
       updatedAt: now,
@@ -386,11 +383,6 @@ export class PostItsController implements vscode.Disposable {
     this.renderThread(thread, postIt);
     this.renderDecorations();
     await this.persist(postIt.noteId);
-  }
-
-  private cancelDraft(reply: vscode.CommentReply): void {
-    this.drafts.delete(reply.thread);
-    reply.thread.dispose();
   }
 
   private setEditing(comment: PostItComment, editing: boolean): void {
@@ -507,6 +499,12 @@ export class PostItsController implements vscode.Disposable {
       ? 'Active NOAT note: new post-its go here, and only its post-its show in code. Click to change.'
       : "No active NOAT note: every note's post-its show in code. Click to pick one.";
     this.status.show();
+    this.comments.options = {
+      prompt: 'Leave a post-it…',
+      placeHolder: note
+        ? `Post-it for ${resolveNoteIcon(note.icon)} ${note.title}. ${SUBMIT_KEY} to save`
+        : `What is this code doing? ${SUBMIT_KEY} to save`,
+    };
     this.syncThreads();
     this.activeEmitter.fire(note?.id);
   }
@@ -563,16 +561,19 @@ export class PostItsController implements vscode.Disposable {
   private async decorate(editor: vscode.TextEditor): Promise<void> {
     const anchor = await this.anchorOf(editor.document.uri);
     const visible = anchor ? this.visiblePostIts().filter((p) => sameAnchor(p, anchor)) : [];
+    // Gutter decorations get no hover, so the post-it reads from its code.
     editor.setDecorations(
       this.highlight,
-      visible.map((postIt) => toRange(postIt.range))
-    );
-    editor.setDecorations(
-      this.marker,
       visible.map((postIt) => ({
-        range: new vscode.Range(postIt.range.start.line, 0, postIt.range.start.line, 0),
+        range: toRange(postIt.range),
         hoverMessage: this.hoverFor(postIt),
       }))
+    );
+    // On the last line, beside the comment glyph the editor draws there,
+    // which is what opens the post-it when clicked.
+    editor.setDecorations(
+      this.marker,
+      visible.map((postIt) => new vscode.Range(postIt.range.end.line, 0, postIt.range.end.line, 0))
     );
   }
 
@@ -624,12 +625,6 @@ export class PostItsController implements vscode.Disposable {
         return cached;
       };
     })();
-
-    for (const [thread, draft] of this.drafts) {
-      if (thread.uri.toString() !== uri) continue;
-      draft.range = trackRange(draft.range, changes, draft.snippet, text);
-      thread.range = toRange(draft.range);
-    }
 
     const anchor = this.anchors.get(uri);
     if (!anchor) return;
@@ -813,7 +808,6 @@ export class PostItsController implements vscode.Disposable {
     if (this.notesTimer) clearTimeout(this.notesTimer);
     for (const disposable of this.disposables) disposable.dispose();
     for (const thread of this.threads.values()) thread.dispose();
-    for (const thread of this.drafts.keys()) thread.dispose();
     this.comments.dispose();
     this.highlight.dispose();
     this.marker.dispose();
