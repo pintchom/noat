@@ -27,7 +27,7 @@ const CONTROLLER_ID = 'noat.postIts';
 const ACTIVE_NOTE_KEY = 'noat.activeNoteId';
 const HAS_ACTIVE_NOTE_CONTEXT = 'noat.hasActiveNote';
 const RELOAD_DEBOUNCE_MS = 300;
-const HOVER_COMMANDS = ['noat.openNote', 'noat.revealPostIt'] as const;
+const HOVER_COMMANDS = ['noat.openNote', 'noat.revealPostIt', 'noat.deletePostIt'] as const;
 const SUBMIT_KEY = process.platform === 'darwin' ? '⌘Enter' : 'Ctrl+Enter';
 
 interface NoteInfo {
@@ -251,6 +251,7 @@ export class PostItsController implements vscode.Disposable {
     register('noat.setActiveNote', () => this.chooseActiveNote());
     register('noat.clearActiveNote', () => this.setActiveNote(undefined));
     register('noat.revealPostIt', (id: string) => this.reveal(id));
+    register('noat.deletePostIt', (id: string) => this.confirmDelete(id));
     register('noat.postIt.save', (reply: vscode.CommentReply) => this.saveDraft(reply));
     register('noat.postIt.cancel', (reply: vscode.CommentReply) => reply.thread.dispose());
     register('noat.postIt.edit', (comment: PostItComment) => this.setEditing(comment, true));
@@ -598,6 +599,7 @@ export class PostItsController implements vscode.Disposable {
     if (note) {
       actions.appendMarkdown(` · [Open note](${commandLink('noat.openNote', [note.absPath])})`);
     }
+    actions.appendMarkdown(` · [Delete](${commandLink('noat.deletePostIt', [postIt.id])})`);
     return [content, actions];
   }
 

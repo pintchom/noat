@@ -27,7 +27,7 @@ Type `/point`, then click any line in the note. A chip linking to that line land
 
 ### Post-its in your code
 
-Tracing through code? Select some lines and hit `Cmd+Alt+N` (`Ctrl+Alt+N`), right-click → **NOAT: Add Post-it**, or click the `+` that appears in the gutter on hover, and a post-it opens inline right there. Write what the code does, `Cmd+Enter` to save, then click away: it folds into a yellow sticky-note icon in the gutter (where breakpoints go) with the code highlighted. Hover the highlighted code to read it, click the comment icon beside the sticky note to unfold it, and edit or delete it from its title bar. `Esc` folds an open one too.
+Tracing through code? Select some lines and hit `Cmd+Alt+N` (`Ctrl+Alt+N`), right-click → **NOAT: Add Post-it**, or click the `+` that appears in the gutter on hover, and a post-it opens inline right there. Write what the code does, `Cmd+Enter` to save, then click away: it folds into a yellow sticky-note icon in the gutter (where breakpoints go) with the code highlighted. Hover the highlighted code to read it, or to expand or delete it from there; click the comment icon beside the sticky note to unfold it, and edit or delete it from its title bar. `Esc` folds an open one too.
 
 Every post-it belongs to a note. The **active note** — shown in the status bar, marked 📌 in the sidebar — is where new post-its go, and while one is active only its post-its show in code, so the notes from one investigation don't bleed into another. Pick it from the status bar, `NOAT: Choose Active Note…`, or right-click a note → **Set as Active Note**; the pin icon in the sidebar goes back to showing every note's post-its. Each note lists its post-its at the top, with the code they point at; click one to jump there.
 
