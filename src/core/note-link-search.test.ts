@@ -3,7 +3,7 @@ import { rankNoteLinks } from './note-link-search';
 import type { NoteListing } from './note-listing';
 
 function listing(title: string, notePath: string, updatedAt: string): NoteListing {
-  return { notePath, title, scope: 'global', updatedAt };
+  return { notePath, id: notePath, title, scope: 'global', updatedAt };
 }
 
 // Recency-ordered, as listAllNotes returns them.

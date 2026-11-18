@@ -16,8 +16,20 @@ export interface NoteLinkResult {
   scopeLabel: string;
 }
 
+/** A post-it this note owns, as listed in the note's post-it panel. */
+export interface PostItSummary {
+  id: string;
+  /** e.g. "src/server.ts:42" (1-based line). */
+  location: string;
+  /** Dedented, line-capped preview of the highlighted code. */
+  snippet: string;
+  text: string;
+}
+
 export type HostToWebviewMessage =
   | { type: 'init'; text: string; assetsBaseUri: string }
+  /** The note's post-its, sent after init and whenever they change. */
+  | { type: 'postIts'; postIts: PostItSummary[] }
   | { type: 'update'; text: string }
   | { type: 'fileResults'; requestId: number; files: string[] }
   /** Short text preview of a workspace file; absent when there's none to show. */
@@ -37,6 +49,9 @@ export type WebviewToHostMessage =
   | { type: 'searchNotes'; requestId: number; query: string }
   | { type: 'openNote'; notePath: string }
   | { type: 'saveAsset'; requestId: number; name: string; dataBase64: string }
+  /** Jump to a post-it in the code. */
+  | { type: 'openPostIt'; id: string }
+  | { type: 'deletePostIt'; id: string }
   /**
    * Generate a Mermaid diagram from `prompt`; the host supplies the note as
    * context. `repair` asks the model to fix a script Mermaid just rejected.

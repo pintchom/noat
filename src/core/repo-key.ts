@@ -17,8 +17,10 @@ export function remoteUrlToRepoKey(remoteUrl: string): string {
     const scpMatch = trimmed.match(/^[\w.-]+@([\w.-]+):(.+)$/);
     if (scpMatch) return `${scpMatch[1]}/${scpMatch[2]}`;
 
-    // URL syntax: proto://[user@]host[:port]/path
-    const urlMatch = trimmed.match(/^[a-z+]+:\/\/(?:[\w.-]+@)?([\w.-]+)(?::\d+)?\/(.+)$/i);
+    // URL syntax: proto://[user[:password]@]host[:port]/path. Credentials
+    // (CI tokens in https remotes) must never reach the key: it names store
+    // directories and is written into git-synced files.
+    const urlMatch = trimmed.match(/^[a-z+]+:\/\/(?:[^@/]+@)?([\w.-]+)(?::\d+)?\/(.+)$/i);
     if (urlMatch) return `${urlMatch[1]}/${urlMatch[2]}`;
 
     return trimmed;

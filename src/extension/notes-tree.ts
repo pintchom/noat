@@ -22,6 +22,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoatNode> {
   readonly onDidChangeTreeData = this.onDidChangeEmitter.event;
 
   private showAllRepos = false;
+  private activeNoteId: string | undefined;
 
   constructor(
     private readonly noatHome: string,
@@ -48,6 +49,12 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoatNode> {
   setShowAllRepos(showAll: boolean): void {
     if (this.showAllRepos === showAll) return;
     this.showAllRepos = showAll;
+    this.refresh();
+  }
+
+  setActiveNoteId(noteId: string | undefined): void {
+    if (this.activeNoteId === noteId) return;
+    this.activeNoteId = noteId;
     this.refresh();
   }
 
@@ -79,6 +86,10 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoatNode> {
     );
     item.id = entry.absPath;
     item.contextValue = `note-${scopeSuffix}`;
+    if (entry.id !== undefined && entry.id === this.activeNoteId) {
+      item.description = '📌 active';
+      item.tooltip = 'Active note: new post-its go here, and only its post-its show in code.';
+    }
     item.command = {
       command: 'noat.openNote',
       title: 'Open Note',

@@ -22,6 +22,7 @@ import { logError } from './log';
 import { registerMcpServer } from './mcp-registration';
 import { NoteEditorProvider } from './note-editor';
 import { type NoatNode, NotesDragAndDropController, NotesTreeProvider } from './notes-tree';
+import { PostItsController } from './post-its';
 import { SitePublisher } from './publish';
 import { showSearchPalette } from './search-palette';
 import { detectWorkspaceRepo } from './workspace-scope';
@@ -65,12 +66,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   };
   syncConfig();
 
+  const postIts = new PostItsController(context, noatHome);
+  void postIts.start().catch((error) => logError('failed to start post-its', error));
+
   context.subscriptions.push(
+    postIts,
+    postIts.onDidChangeActiveNote((noteId) => tree.setActiveNoteId(noteId)),
     vscode.window.createTreeView('noatNotes', {
       treeDataProvider: tree,
       dragAndDropController: new NotesDragAndDropController(tree),
     }),
-    NoteEditorProvider.register(context),
+    NoteEditorProvider.register(context, postIts),
     gitSync,
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('noat.mcp.useDirectJson')) syncConfig();
@@ -244,6 +250,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       return;
     }
     await moveTo(node, repo.scope);
+  });
+
+  register('noat.makeActiveNote', async (node) => {
+    if (node?.type !== 'entry' || node.entry.id === undefined) return;
+    await postIts.setActiveNote(node.entry.id);
   });
 
   register('noat.exportPdf', (node) => exportNoteAsPdf(noatHome, node));

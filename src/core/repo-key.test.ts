@@ -14,6 +14,12 @@ describe('remoteUrlToRepoKey', () => {
     expect(remoteUrlToRepoKey('ssh://git@github.com/foo/bar')).toBe('github.com--foo--bar');
   });
 
+  it('drops credentials embedded in https remotes', () => {
+    expect(remoteUrlToRepoKey('https://x-access-token:ghs_secret@github.com/foo/bar')).toBe(
+      'github.com--foo--bar'
+    );
+  });
+
   it('produces identical keys across remote styles', () => {
     const keys = [
       'git@github.com:Foo/Bar.git',

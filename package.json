@@ -142,9 +142,88 @@
       {
         "command": "noat.signOutNetlify",
         "title": "NOAT: Sign Out of Netlify"
+      },
+      {
+        "command": "noat.addPostIt",
+        "title": "NOAT: Add Post-it",
+        "icon": "$(note)"
+      },
+      {
+        "command": "noat.setActiveNote",
+        "title": "NOAT: Choose Active Note…"
+      },
+      {
+        "command": "noat.makeActiveNote",
+        "title": "Set as Active Note"
+      },
+      {
+        "command": "noat.clearActiveNote",
+        "title": "NOAT: Show Post-its From All Notes",
+        "icon": "$(pinned)"
+      },
+      {
+        "command": "noat.revealPostIt",
+        "title": "NOAT: Show Post-it"
+      },
+      {
+        "command": "noat.postIt.save",
+        "title": "Save Post-it"
+      },
+      {
+        "command": "noat.postIt.cancel",
+        "title": "Cancel"
+      },
+      {
+        "command": "noat.postIt.edit",
+        "title": "Edit",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "noat.postIt.saveEdit",
+        "title": "Save"
+      },
+      {
+        "command": "noat.postIt.cancelEdit",
+        "title": "Cancel"
+      },
+      {
+        "command": "noat.postIt.delete",
+        "title": "Delete Post-it",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "noat.postIt.openNote",
+        "title": "Open Note",
+        "icon": "$(go-to-file)"
+      }
+    ],
+    "colors": [
+      {
+        "id": "noat.postItHighlightBackground",
+        "description": "Background of code that has a NOAT post-it.",
+        "defaults": {
+          "dark": "#f7d33a26",
+          "light": "#f7d33a40",
+          "highContrast": "#f7d33a40"
+        }
+      },
+      {
+        "id": "noat.postItOverviewRuler",
+        "description": "Overview ruler mark for NOAT post-its.",
+        "defaults": {
+          "dark": "#f7d33a",
+          "light": "#d9b000",
+          "highContrast": "#f7d33a"
+        }
       }
     ],
     "keybindings": [
+      {
+        "command": "noat.addPostIt",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n",
+        "when": "editorTextFocus"
+      },
       {
         "command": "noat.searchNotes",
         "key": "ctrl+shift+s",
@@ -261,9 +340,19 @@
           "command": "noat.openKeyboardShortcuts",
           "when": "view == noatNotes",
           "group": "navigation@4"
+        },
+        {
+          "command": "noat.clearActiveNote",
+          "when": "view == noatNotes && noat.hasActiveNote",
+          "group": "navigation@5"
         }
       ],
       "view/item/context": [
+        {
+          "command": "noat.makeActiveNote",
+          "when": "view == noatNotes && viewItem =~ /note/",
+          "group": "0_active@1"
+        },
         {
           "command": "noat.newNote",
           "when": "view == noatNotes && viewItem =~ /scope|folder/",
@@ -322,9 +411,94 @@
           "group": "navigation@2"
         }
       ],
+      "editor/context": [
+        {
+          "command": "noat.addPostIt",
+          "group": "noat@1"
+        }
+      ],
+      "comments/commentThread/context": [
+        {
+          "command": "noat.postIt.save",
+          "group": "inline@1",
+          "when": "commentController == noat.postIts && commentThreadIsEmpty"
+        },
+        {
+          "command": "noat.postIt.cancel",
+          "group": "inline@2",
+          "when": "commentController == noat.postIts && commentThreadIsEmpty"
+        }
+      ],
+      "comments/commentThread/title": [
+        {
+          "command": "noat.postIt.openNote",
+          "group": "navigation@1",
+          "when": "commentController == noat.postIts && !commentThreadIsEmpty"
+        },
+        {
+          "command": "noat.postIt.delete",
+          "group": "navigation@2",
+          "when": "commentController == noat.postIts && !commentThreadIsEmpty"
+        }
+      ],
+      "comments/comment/title": [
+        {
+          "command": "noat.postIt.edit",
+          "group": "inline@1",
+          "when": "commentController == noat.postIts && comment == postIt"
+        }
+      ],
+      "comments/comment/context": [
+        {
+          "command": "noat.postIt.saveEdit",
+          "group": "inline@1",
+          "when": "commentController == noat.postIts"
+        },
+        {
+          "command": "noat.postIt.cancelEdit",
+          "group": "inline@2",
+          "when": "commentController == noat.postIts"
+        }
+      ],
       "commandPalette": [
         {
           "command": "noat.openNote",
+          "when": "false"
+        },
+        {
+          "command": "noat.makeActiveNote",
+          "when": "false"
+        },
+        {
+          "command": "noat.revealPostIt",
+          "when": "false"
+        },
+        {
+          "command": "noat.postIt.save",
+          "when": "false"
+        },
+        {
+          "command": "noat.postIt.cancel",
+          "when": "false"
+        },
+        {
+          "command": "noat.postIt.edit",
+          "when": "false"
+        },
+        {
+          "command": "noat.postIt.saveEdit",
+          "when": "false"
+        },
+        {
+          "command": "noat.postIt.cancelEdit",
+          "when": "false"
+        },
+        {
+          "command": "noat.postIt.delete",
+          "when": "false"
+        },
+        {
+          "command": "noat.postIt.openNote",
           "when": "false"
         },
         {

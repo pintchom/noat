@@ -6,6 +6,8 @@ import { getNotesRoot } from './paths';
 export interface NoteListing {
   /** Store-relative path, e.g. "global/Ideas.noat.json" — the canonical note id. */
   notePath: string;
+  /** The note's own id, stable across renames and moves. */
+  id: string;
   title: string;
   icon?: string;
   scope: string;
@@ -95,6 +97,7 @@ export async function listAllNotes(noatHome: string, scopeFilter?: string): Prom
           const note = parseNote(await fs.readFile(absPath, 'utf8'));
           results.push({
             notePath: relPath,
+            id: note.id,
             title: note.title,
             ...(note.icon && { icon: note.icon }),
             scope,

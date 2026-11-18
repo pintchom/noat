@@ -28,6 +28,11 @@ export function getAssetsDir(noatHome: string): string {
   return path.join(noatHome, 'assets');
 }
 
+/** Post-its left in code, one file per note (see core/post-its.ts). */
+export function getPostItsDir(noatHome: string): string {
+  return path.join(noatHome, 'postits');
+}
+
 /** Local clone of the repository published notes are pushed to (see core/publish.ts). */
 export function getSiteDir(noatHome: string): string {
   return path.join(noatHome, 'site');
