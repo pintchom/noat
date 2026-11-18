@@ -27,6 +27,7 @@ const CONTROLLER_ID = 'noat.postIts';
 const ACTIVE_NOTE_KEY = 'noat.activeNoteId';
 const HAS_ACTIVE_NOTE_CONTEXT = 'noat.hasActiveNote';
 const RELOAD_DEBOUNCE_MS = 300;
+const HOVER_COMMANDS = ['noat.openNote', 'noat.revealPostIt'] as const;
 const SUBMIT_KEY = process.platform === 'darwin' ? '⌘Enter' : 'Ctrl+Enter';
 
 interface NoteInfo {
@@ -578,19 +579,26 @@ export class PostItsController implements vscode.Disposable {
     );
   }
 
-  private hoverFor(postIt: PostIt): vscode.MarkdownString {
+  /**
+   * The post-it's own text renders as untrusted markdown in a section of its
+   * own, so nothing in it can reach the command links, which live in a
+   * separate trusted section.
+   */
+  private hoverFor(postIt: PostIt): vscode.MarkdownString[] {
+    const content = new vscode.MarkdownString();
+    content.appendMarkdown('**');
+    content.appendText(this.noteLabel(postIt.noteId));
+    content.appendMarkdown('**\n\n');
+    content.appendMarkdown(postIt.text);
+
     const note = this.notes.get(postIt.noteId);
-    const hover = new vscode.MarkdownString();
-    hover.isTrusted = { enabledCommands: ['noat.openNote', 'noat.revealPostIt'] };
-    hover.appendMarkdown('**');
-    hover.appendText(this.noteLabel(postIt.noteId));
-    hover.appendMarkdown('**\n\n');
-    hover.appendMarkdown(postIt.text);
-    hover.appendMarkdown(`\n\n[Expand](${commandLink('noat.revealPostIt', [postIt.id])})`);
+    const actions = new vscode.MarkdownString();
+    actions.isTrusted = { enabledCommands: [...HOVER_COMMANDS] };
+    actions.appendMarkdown(`[Expand](${commandLink('noat.revealPostIt', [postIt.id])})`);
     if (note) {
-      hover.appendMarkdown(` · [Open note](${commandLink('noat.openNote', [note.absPath])})`);
+      actions.appendMarkdown(` · [Open note](${commandLink('noat.openNote', [note.absPath])})`);
     }
-    return hover;
+    return [content, actions];
   }
 
   /** Clicking or moving the cursor off a post-it folds it back into its gutter icon. */
